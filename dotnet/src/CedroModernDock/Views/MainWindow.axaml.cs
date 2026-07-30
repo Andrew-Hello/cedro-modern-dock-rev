@@ -47,6 +47,12 @@ public partial class MainWindow : Window
             var (x, y) = _appServices.PositioningService.ResolvePosition(Width, Height);
             Position = new PixelPoint((int)x, (int)y);
         }
+
+        // Initialize the dock ViewModel (loads items, starts indicator watcher).
+        if (DataContext is MainWindowViewModel vm)
+        {
+            vm.Initialize();
+        }
     }
 
     /// <summary>Allows dragging the borderless dock window.</summary>
@@ -64,6 +70,8 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        if (DataContext is MainWindowViewModel vm)
+            vm.Shutdown();
         _dockBehavior?.Dispose();
         _dockBehavior = null;
         base.OnClosed(e);

@@ -28,7 +28,8 @@ public partial class App : Application
             // Composition root — wire concrete Windows adapters into the application services.
             // Direct port of App.java's createServices() method.
             var appServices = CreateServices();
-            var mainWindow = new MainWindow { DataContext = new MainWindowViewModel() };
+            var viewModel = new MainWindowViewModel(appServices);
+            var mainWindow = new MainWindow { DataContext = viewModel };
             mainWindow.SetAppServices(appServices);
             desktop.MainWindow = mainWindow;
         }

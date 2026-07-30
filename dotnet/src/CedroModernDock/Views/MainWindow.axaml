@@ -3,38 +3,80 @@
         xmlns:vm="using:CedroModernDock.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="440" d:DesignHeight="120"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="80"
         x:Class="CedroModernDock.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="Cedro Modern Dock — Phase 0 Spike"
-        Width="440" Height="120"
+        Title="Cedro Modern Dock"
+        Width="500" Height="80"
         CanResize="False"
         SystemDecorations="None"
         ShowInTaskbar="False"
         Topmost="True"
         TransparencyLevelHint="Transparent"
         Background="Transparent"
-        WindowStartupLocation="CenterScreen"
+        SizeToContent="Width"
         PointerPressed="OnPointerPressed">
 
     <Design.DataContext>
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <!-- Dark rounded dock body with placeholder items -->
-    <Border Background="#88000000" CornerRadius="16" Padding="12"
-            HorizontalAlignment="Center" VerticalAlignment="Center"
+    <!-- Dock bar: rounded background with items -->
+    <Border x:Name="DockBar"
+            Background="{Binding DockBackground}"
+            CornerRadius="{Binding BorderRounding}"
+            Padding="10"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
             ClipToBounds="True">
-        <StackPanel Orientation="Vertical" Spacing="6" HorizontalAlignment="Center">
-            <StackPanel Orientation="Horizontal" Spacing="12">
-                <Ellipse Width="44" Height="44" Fill="#2196F3" />
-                <Ellipse Width="44" Height="44" Fill="#4CAF50" />
-                <Ellipse Width="44" Height="44" Fill="#FF9800" />
-                <Ellipse Width="44" Height="44" Fill="#F44336" />
-            </StackPanel>
-            <TextBlock Text="{Binding StatusText}"
-                       Foreground="#88FFFFFF" FontSize="10"
-                       HorizontalAlignment="Center" />
-        </StackPanel>
+
+        <ItemsControl ItemsSource="{Binding Items}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="{Binding Spacing}" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:DockItemViewModel">
+                    <Button Command="{Binding ClickCommand}"
+                            CommandParameter="{Binding $self}"
+                            Background="Transparent"
+                            BorderBrush="Transparent"
+                            Padding="4"
+                            Cursor="Hand"
+                            ToolTip.Tip="{Binding Label}">
+
+                        <!-- Hover scale animation via ScaleTransform + Transitions -->
+                        <Button.RenderTransform>
+                            <ScaleTransform ScaleX="1" ScaleY="1" />
+                        </Button.RenderTransform>
+                        <Button.Transitions>
+                            <Transitions>
+                                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
+                            </Transitions>
+                        </Button.Transitions>
+
+                        <Button.Styles>
+                            <Style Selector="Button:pointerover">
+                                <Setter Property="RenderTransform" Value="scale 1.3" />
+                            </Style>
+                        </Button.Styles>
+
+                        <!-- Item content: icon + running indicator -->
+                        <StackPanel Orientation="Vertical" Spacing="3"
+                                    HorizontalAlignment="Center">
+                            <Image Source="{Binding Icon}"
+                                   Width="{Binding IconSize}"
+                                   Height="{Binding IconSize}"
+                                   Stretch="Uniform" />
+                            <Ellipse Width="4" Height="4"
+                                     Fill="White"
+                                     IsVisible="{Binding IsRunning}" />
+                        </StackPanel>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
     </Border>
 </Window>

@@ -1,0 +1,13 @@
+## .NET build artifacts
+bin/
+obj/
+
+## Visual Studio / Rider
+*.user
+*.suo
+.vs/
+.idea/
+
+## Publish output
+publish/
+artifacts/

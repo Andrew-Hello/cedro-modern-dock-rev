@@ -1,0 +1,40 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CedroModernDock.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="440" d:DesignHeight="120"
+        x:Class="CedroModernDock.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Cedro Modern Dock — Phase 0 Spike"
+        Width="440" Height="120"
+        CanResize="False"
+        SystemDecorations="None"
+        ShowInTaskbar="False"
+        Topmost="True"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
+        WindowStartupLocation="CenterScreen"
+        PointerPressed="OnPointerPressed">
+
+    <Design.DataContext>
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <!-- Dark rounded dock body with placeholder items -->
+    <Border Background="#88000000" CornerRadius="16" Padding="12"
+            HorizontalAlignment="Center" VerticalAlignment="Center"
+            ClipToBounds="True">
+        <StackPanel Orientation="Vertical" Spacing="6" HorizontalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Ellipse Width="44" Height="44" Fill="#2196F3" />
+                <Ellipse Width="44" Height="44" Fill="#4CAF50" />
+                <Ellipse Width="44" Height="44" Fill="#FF9800" />
+                <Ellipse Width="44" Height="44" Fill="#F44336" />
+            </StackPanel>
+            <TextBlock Text="{Binding StatusText}"
+                       Foreground="#88FFFFFF" FontSize="10"
+                       HorizontalAlignment="Center" />
+        </StackPanel>
+    </Border>
+</Window>

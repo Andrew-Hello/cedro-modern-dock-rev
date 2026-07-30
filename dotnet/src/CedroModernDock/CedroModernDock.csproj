@@ -27,5 +27,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CedroModernDock.Infrastructure.Windows\CedroModernDock.Infrastructure.Windows.csproj" />
+    <ProjectReference Include="..\CedroModernDock.Core\CedroModernDock.Core.csproj" />
   </ItemGroup>
 </Project>

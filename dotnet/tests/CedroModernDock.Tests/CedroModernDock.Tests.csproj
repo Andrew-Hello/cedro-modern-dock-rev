@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\CedroModernDock\CedroModernDock.csproj" />
     <ProjectReference Include="..\..\src\CedroModernDock.Infrastructure.Windows\CedroModernDock.Infrastructure.Windows.csproj" />
+    <ProjectReference Include="..\..\src\CedroModernDock.Core\CedroModernDock.Core.csproj" />
   </ItemGroup>
 
 </Project>

@@ -7,6 +7,7 @@
         x:Class="CedroModernDock.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="Cedro Modern Dock"
+        Icon="/Assets/icons/cedro/logo_256.png"
         Width="500" Height="80"
         CanResize="False"
         SystemDecorations="None"

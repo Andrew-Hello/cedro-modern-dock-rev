@@ -1,10 +1,12 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using System.Linq;
 using Avalonia.Markup.Xaml;
 using CedroModernDock.Core.Application;
+using CedroModernDock.Core.Models;
 using CedroModernDock.Infrastructure.Windows.Adapters;
 using CedroModernDock.Infrastructure.Windows.Persistence;
 using CedroModernDock.ViewModels;
@@ -14,6 +16,11 @@ namespace CedroModernDock;
 
 public partial class App : Application
 {
+    private static AppServices? _appServices;
+    private static MainWindow? _mainWindow;
+    private static MainWindowViewModel? _mainViewModel;
+    private static IClassicDesktopStyleApplicationLifetime? _desktop;
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -25,16 +32,97 @@ public partial class App : Application
         {
             DisableAvaloniaDataAnnotationValidation();
 
+            // Keep the app alive via tray icon — the window is never closed, only hidden.
+            _desktop = desktop;
+
+            // Wire tray icon events (Avalonia TrayIcon events can't be set via XAML string attributes).
+            WireTrayIcon();
+
             // Composition root — wire concrete Windows adapters into the application services.
-            // Direct port of App.java's createServices() method.
             var appServices = CreateServices();
+            _appServices = appServices;
+
             var viewModel = new MainWindowViewModel(appServices);
+            _mainViewModel = viewModel;
+
             var mainWindow = new MainWindow { DataContext = viewModel };
             mainWindow.SetAppServices(appServices);
+            _mainWindow = mainWindow;
             desktop.MainWindow = mainWindow;
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private void WireTrayIcon()
+    {
+        var trayIcon = new TrayIcon
+        {
+            Icon = new WindowIcon("Assets/icons/cedro/logo_32.png"),
+            ToolTipText = "Cedro Modern Dock",
+            Menu = new NativeMenu()
+        };
+
+        var settingsItem = new NativeMenuItem { Header = "Open Settings" };
+        var exitItem = new NativeMenuItem { Header = "Exit" };
+
+        // In Avalonia 11.3, NativeMenuItem uses Command property for click handling.
+        settingsItem.Command = new ViewModels.RelayCommand(_ => OpenSettingsFromTray());
+        exitItem.Command = new ViewModels.RelayCommand(_ => OnTrayExit());
+
+        trayIcon.Menu.Items.Add(settingsItem);
+        trayIcon.Menu.Items.Add(new NativeMenuItemSeparator());
+        trayIcon.Menu.Items.Add(exitItem);
+
+        // Also handle a direct click on the tray icon.
+        trayIcon.Clicked += (_, _) => OpenSettingsFromTray();
+
+        // Register the tray icon with the application.
+        var icons = new TrayIcons();
+        icons.Add(trayIcon);
+        TrayIcon.SetIcons(this, icons);
+    }
+
+    // --- Tray icon event handlers ---
+
+    private static void OnTrayIconClick()
+    {
+        // Left-click on tray icon → open settings (same as Java SystemTrayManager).
+        OpenSettingsFromTray();
+    }
+
+    private static void OnTrayOpenSettings()
+    {
+        OpenSettingsFromTray();
+    }
+
+    private static void OnTrayExit()
+    {
+        _mainViewModel?.Shutdown();
+        _desktop?.Shutdown();
+    }
+
+    private static void OpenSettingsFromTray()
+    {
+        if (_appServices == null || _mainWindow == null || _mainViewModel == null) return;
+        _mainWindow.Show();
+        SettingsWindow.Open(
+            _appServices,
+            _mainWindow,
+            _mainViewModel.UpdateDockUI,
+            mode => HandlePositioningModeChange(mode)
+        );
+    }
+
+    private static void HandlePositioningModeChange(DockPositioningMode mode)
+    {
+        if (_appServices == null || _mainWindow == null) return;
+        var currentMode = _appServices.PositioningService.GetPositioningMode();
+        if (currentMode == DockPositioningMode.STATIC && mode == DockPositioningMode.DYNAMIC)
+        {
+            _appServices.DockService.SetDockPosition(_mainWindow.Position.X, _mainWindow.Position.Y);
+        }
+        _appServices.PositioningService.SetPositioningMode(mode);
     }
 
     /// <summary>

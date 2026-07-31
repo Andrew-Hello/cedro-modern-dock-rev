@@ -122,6 +122,13 @@ public partial class SettingsViewModel : ViewModelBase
     public string OpenSourceText => T("settings.general.openSource");
     public string AcknowledgementsText => T("settings.general.acknowledgements");
 
+    private bool _isAutoStartEnabled;
+    public bool IsAutoStartEnabled
+    {
+        get => _isAutoStartEnabled;
+        set => SetProperty(ref _isAutoStartEnabled, value);
+    }
+
     public SettingsViewModel(AppServices appServices, Action dockRefreshAction,
         Action<DockPositioningMode> positioningModeChangeAction)
     {
@@ -154,6 +161,7 @@ public partial class SettingsViewModel : ViewModelBase
 
         RefreshItemLabels();
         SelectedLanguage = _appServices.LocalizationService.GetCurrentLanguage();
+        IsAutoStartEnabled = Infrastructure.Windows.Adapters.AutoStartHelper.IsAutoStartEnabled();
         _isInitialized = true;
     }
 
@@ -171,6 +179,7 @@ public partial class SettingsViewModel : ViewModelBase
             case nameof(BorderRounding): OnBorderRoundingChanged(); break;
             case nameof(DockColor): OnDockColorChanged(); break;
             case nameof(SelectedLanguage): OnLanguageChanged(SelectedLanguage); break;
+            case nameof(IsAutoStartEnabled): OnAutoStartChanged(); break;
             case nameof(IsStaticMode): OnPositioningModeChanged(); break;
             case nameof(VerticalAnchor): OnVerticalAnchorChanged(); break;
             case nameof(HorizontalAnchor): OnHorizontalAnchorChanged(); break;
@@ -201,6 +210,14 @@ public partial class SettingsViewModel : ViewModelBase
     public void OnBorderRoundingChanged() { _appServices.AppearanceService.SetDockBorderRounding(BorderRounding); _dockRefreshAction(); }
     public void OnDockColorChanged() { _appServices.AppearanceService.SetDockColorRGB(ColorToRgb(DockColor)); _dockRefreshAction(); }
     public void OnLanguageChanged(SupportedLanguage lang) { _appServices.LocalizationService.SetLanguage(lang); _dockRefreshAction(); }
+
+    public void OnAutoStartChanged()
+    {
+        if (IsAutoStartEnabled)
+            Infrastructure.Windows.Adapters.AutoStartHelper.EnableAutoStart();
+        else
+            Infrastructure.Windows.Adapters.AutoStartHelper.DisableAutoStart();
+    }
     public void OnPositioningModeChanged()
     {
         var mode = IsStaticMode ? DockPositioningMode.STATIC : DockPositioningMode.DYNAMIC;

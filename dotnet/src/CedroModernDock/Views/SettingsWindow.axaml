@@ -1,0 +1,124 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CedroModernDock.ViewModels"
+        x:Class="CedroModernDock.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="{Binding WindowTitle}"
+        Width="520" Height="680"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="#1E1E1E"
+        Closed="OnClosed">
+
+    <ScrollViewer Padding="20">
+        <StackPanel Orientation="Vertical" Spacing="12">
+            <!-- Header -->
+            <TextBlock Text="{Binding PageTitle}" FontSize="22" FontWeight="Bold" Foreground="White"/>
+            <TextBlock Text="{Binding PageSubtitle}" FontSize="12" Foreground="#999999" TextWrapping="Wrap"/>
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,8">
+                <TextBlock Text="{Binding LanguageLabel}" VerticalAlignment="Center" Foreground="#CCCCCC"/>
+                <ComboBox ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}"
+                          MinWidth="180" Background="#2D2D2D" Foreground="White"/>
+            </StackPanel>
+
+            <TabControl Background="Transparent" Padding="0">
+                <!-- Tab 1: Icons -->
+                <TabItem Header="{Binding TabIcons}">
+                    <StackPanel Orientation="Vertical" Spacing="10" Margin="8">
+                        <TextBlock Text="{Binding ItemsTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
+                        <TextBlock Text="{Binding ItemsHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                        <ListBox ItemsSource="{Binding ItemLabels}" SelectedIndex="{Binding SelectedItemIndex}"
+                                 Background="#2D2D2D" Foreground="White" BorderBrush="#444" BorderThickness="1"
+                                 MinHeight="120" MaxHeight="160"/>
+                        <TextBlock Text="{Binding ActionsTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,4,0,0"/>
+                        <TextBlock Text="{Binding ActionsHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                        <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Button Content="{Binding AddProgramText}" Click="OnAddProgram" Margin="0,0,8,8" Background="#007ACC" Foreground="White" BorderBrush="Transparent" Padding="12,6"/>
+                            <Button Content="{Binding AddFolderText}" Click="OnAddFolder" Margin="0,0,8,8" Background="#007ACC" Foreground="White" BorderBrush="Transparent" Padding="12,6"/>
+                            <Button Content="{Binding AddModuleText}" Click="OnAddModule" Margin="0,0,8,8" Background="#007ACC" Foreground="White" BorderBrush="Transparent" Padding="12,6"/>
+                            <Button Content="{Binding RemoveText}" Click="OnRemove" IsEnabled="{Binding CanRemove}" Margin="0,0,8,8" Background="#D33" Foreground="White" BorderBrush="Transparent" Padding="12,6"/>
+                            <Button Content="{Binding MoveUpText}" Click="OnMoveUp" IsEnabled="{Binding CanMoveUp}" Margin="0,0,8,8" Background="#444" Foreground="White" BorderBrush="Transparent" Padding="12,6"/>
+                            <Button Content="{Binding MoveDownText}" Click="OnMoveDown" IsEnabled="{Binding CanMoveDown}" Margin="0,0,8,8" Background="#444" Foreground="White" BorderBrush="Transparent" Padding="12,6"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </TabItem>
+                <!-- Tab 2: Icons Customization -->
+                <TabItem Header="{Binding TabIconsCustomization}">
+                    <StackPanel Orientation="Vertical" Spacing="16" Margin="16,12">
+                        <StackPanel Orientation="Vertical" Spacing="4">
+                            <TextBlock Text="{Binding IconSizeTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
+                            <TextBlock Text="{Binding IconSizeHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                            <Slider Minimum="16" Maximum="80" Value="{Binding IconSize}" Margin="0,8,0,0"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Vertical" Spacing="4">
+                            <TextBlock Text="{Binding SpacingTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
+                            <TextBlock Text="{Binding SpacingHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                            <Slider Minimum="0" Maximum="20" Value="{Binding IconSpacing}" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </TabItem>
+                <!-- more tabs below -->
+                <!-- Tab 3: Dock Customization -->
+                <TabItem Header="{Binding TabDockCustomization}">
+                    <StackPanel Orientation="Vertical" Spacing="16" Margin="16,12">
+                        <StackPanel Orientation="Vertical" Spacing="4">
+                            <TextBlock Text="{Binding TransparencyTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
+                            <TextBlock Text="{Binding TransparencyHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                            <Slider Minimum="0" Maximum="100" Value="{Binding Transparency}" Margin="0,8,0,0"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Vertical" Spacing="4">
+                            <TextBlock Text="{Binding RoundingTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
+                            <TextBlock Text="{Binding RoundingHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                            <Slider Minimum="0" Maximum="30" Value="{Binding BorderRounding}" Margin="0,8,0,0"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Vertical" Spacing="4">
+                            <TextBlock Text="{Binding BgColorTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
+                            <TextBlock Text="{Binding BgColorHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                            <ColorPicker Color="{Binding DockColor}" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </TabItem>
+                <!-- Tab 4: Positioning -->
+                <TabItem Header="{Binding TabDockPositioning}">
+                    <StackPanel Orientation="Vertical" Spacing="12" Margin="16,12">
+                        <TextBlock Text="{Binding PosModeTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
+                        <TextBlock Text="{Binding PosModeHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Spacing="16">
+                            <RadioButton Content="{Binding StaticText}" IsChecked="{Binding IsStaticMode}" Foreground="White"/>
+                            <RadioButton Content="{Binding DynamicText}" IsChecked="{Binding !IsStaticMode}" Foreground="White"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding AlignmentTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,8,0,0"/>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock Text="{Binding VerticalText}" VerticalAlignment="Center" Foreground="#CCC"/>
+                            <ComboBox ItemsSource="{Binding VerticalAnchors}" SelectedItem="{Binding VerticalAnchor}" Background="#2D2D2D" Foreground="White" MinWidth="100"/>
+                            <TextBlock Text="{Binding HorizontalText}" VerticalAlignment="Center" Foreground="#CCC"/>
+                            <ComboBox ItemsSource="{Binding HorizontalAnchors}" SelectedItem="{Binding HorizontalAnchor}" Background="#2D2D2D" Foreground="White" MinWidth="100"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding ScreenSpacingTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,8,0,0"/>
+                        <StackPanel Orientation="Vertical" Spacing="6">
+                            <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding TopSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding TopSpacing}" Width="320"/></StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding LeftSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding LeftSpacing}" Width="320"/></StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding RightSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding RightSpacing}" Width="320"/></StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding BottomSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding BottomSpacing}" Width="320"/></StackPanel>
+                        </StackPanel>
+                        <TextBlock Text="{Binding DynamicPosTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,8,0,0"/>
+                        <TextBlock Text="{Binding DynamicPosHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </TabItem>
+                <!-- general tab below -->
+                <!-- Tab 5: General -->
+                <TabItem Header="{Binding TabGeneral}">
+                    <StackPanel Orientation="Vertical" Spacing="8" Margin="16,12">
+                        <TextBlock Text="{Binding VersionText}" Foreground="#CCCCCC"/>
+                        <TextBlock Text="{Binding RepoText}" Foreground="#CCCCCC"/>
+                        <TextBlock Text="{Binding ContactText}" Foreground="#CCCCCC"/>
+                        <TextBlock Text="{Binding OpenSourceText}" Foreground="#CCCCCC" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                        <Button Content="{Binding AcknowledgementsText}" Click="OnAcknowledgements"
+                                Background="#007ACC" Foreground="White" BorderBrush="Transparent"
+                                Padding="16,8" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </TabItem>
+            </TabControl>
+        </StackPanel>
+    </ScrollViewer>
+</Window>

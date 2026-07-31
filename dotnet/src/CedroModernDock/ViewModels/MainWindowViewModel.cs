@@ -37,6 +37,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public ICommand LaunchCommand { get; }
 
+    /// <summary>Set by MainWindow — opens the settings window with this window as owner.</summary>
+    public Action? OpenSettingsAction { get; set; }
+
     public MainWindowViewModel()
     {
         LaunchCommand = new RelayCommand(_ => { });
@@ -143,7 +146,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (param is DockItemViewModel itemVm && _appServices != null)
         {
-            _appServices.ItemActionService.Execute(itemVm.Item, () => { /* TODO: open settings */ });
+            _appServices.ItemActionService.Execute(itemVm.Item, () => OpenSettingsAction?.Invoke());
         }
     }
 

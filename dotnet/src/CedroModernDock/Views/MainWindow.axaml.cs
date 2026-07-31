@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Platform;
 using CedroModernDock.Core.Application;
+using CedroModernDock.Core.Models;
 using CedroModernDock.Infrastructure.Windows.Native;
 using CedroModernDock.ViewModels;
 
@@ -51,6 +52,7 @@ public partial class MainWindow : Window
         // Initialize the dock ViewModel (loads items, starts indicator watcher).
         if (DataContext is MainWindowViewModel vm)
         {
+            vm.OpenSettingsAction = () => OpenSettings(vm);
             vm.Initialize();
         }
     }
@@ -66,6 +68,30 @@ public partial class MainWindow : Window
     {
         if (DataContext is MainWindowViewModel vm)
             vm.StatusText = status;
+    }
+
+    /// <summary>Opens the settings window. Port of App.java openSettingsWindow().</summary>
+    private void OpenSettings(MainWindowViewModel vm)
+    {
+        if (_appServices == null) return;
+        SettingsWindow.Open(
+            _appServices,
+            this,
+            dockRefreshAction: vm.UpdateDockUI,
+            positioningModeChangeAction: mode => HandlePositioningModeChange(mode)
+        );
+    }
+
+    /// <summary>Port of App.java handlePositioningModeChange().</summary>
+    private void HandlePositioningModeChange(DockPositioningMode mode)
+    {
+        if (_appServices == null) return;
+        var currentMode = _appServices.PositioningService.GetPositioningMode();
+        if (currentMode == DockPositioningMode.STATIC && mode == DockPositioningMode.DYNAMIC)
+        {
+            _appServices.DockService.SetDockPosition(Position.X, Position.Y);
+        }
+        _appServices.PositioningService.SetPositioningMode(mode);
     }
 
     protected override void OnClosed(EventArgs e)

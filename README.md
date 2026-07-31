@@ -60,7 +60,9 @@
 <!-- BUILT WITH -->
 ## Built With
 
-* ![JavaFX](https://img.shields.io/badge/javafx-%23FF0000.svg?style=for-the-badge&logo=javafx&logoColor=white)
+* ![.NET](https://img.shields.io/badge/.NET-9-5122d3?style=for-the-badge&logo=dotnet&logoColor=white)
+* ![Avalonia](https://img.shields.io/badge/Avalonia-11.3-0080ff?style=for-the-badge&logo=avalonia&logoColor=white)
+* ![Windows](https://img.shields.io/badge/Windows-0078d6?style=for-the-badge&logo=windows&logoColor=white)
 <br>
 
 <!-- GETTING STARTED -->
@@ -68,25 +70,22 @@
 > Only for those who wish to contribute in the project's coding, none of this is required for you to do if you [just want to download it](https://github.com/arthurdeka/cedro-modern-dock/releases)
 ### Understand the project architecture:
 
-The project now follows a lightweight layered architecture:
+The project follows a layered architecture:
 
-- `controller`: JavaFX controllers and UI event handling
-- `application`: dock use cases, appearance rules, item actions and preview orchestration
-- `domain`: ports/interfaces for persistence, icon resolution, program launch and native window queries
-- `infrastructure`: Jackson persistence and Windows-specific adapters
-- `model`: serializable dock data structures used by the application layer
-- `view` and `resources`: popup rendering, FXML, CSS and static assets
+- `CedroModernDock.Core`: Domain models, Application services, and i18n (portable, no OS deps)
+- `CedroModernDock.Infrastructure.Windows`: Windows-specific adapters (Win32 interop, icon extraction, JSON persistence, registry auto-start, tray icon)
+- `CedroModernDock`: Avalonia UI (dock view, settings window, view models, view locators)
+- `CedroModernDock.Tests`: xUnit test suite
 
-`App.java` is responsible for composing these dependencies and injecting them into the JavaFX controllers.
+`App.axaml.cs` is responsible for composing these dependencies and injecting them into the view models.
 
 <!-- PREREQUISITES -->
 ### Prerequisites
 
 Before you begin, ensure you have the following installed on your system: (required only for development)
 
-- **An IDE** (IntelliJ IDEA recommended).
-- **JDK 21**.
-- **Apache Maven**.
+- **An IDE** (Visual Studio 2022 or Rider recommended).
+- **.NET 9 SDK** (or .NET 10 SDK).
 - **Git** for cloning the repository.
 
 <br>
@@ -94,8 +93,8 @@ Before you begin, ensure you have the following installed on your system: (requi
 ### How To Run Locally
 
 1. Clone the repository
-2. Before running, make sure to install all the dependencies
-3. Run `App.java` to run the program
+2. Before running, make sure to install all the dependencies (`dotnet restore`)
+3. Run `dotnet run --project src/CedroModernDock` to run the program
 4. Make desired changes
 5. Commit your changes
 6. Open a pull request
@@ -105,8 +104,8 @@ Before you begin, ensure you have the following installed on your system: (requi
 ### How To `COMPILE` Locally
 
 1. Clone the repository
-2. Install all dependencies
-3. Run `mvn clean package` on the terminal
-4. The `.exe` file will be available at `target\dist\Cedro Modern Dock`
+2. Install all dependencies (`dotnet restore`)
+3. Run `dotnet build src/CedroModernDock -c Release` on the terminal
+4. The `.exe` file will be available at `src/CedroModernDock/bin/Release/net9.0-windows/CedroModernDock.exe`
 
 <br>

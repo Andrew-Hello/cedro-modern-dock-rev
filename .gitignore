@@ -1,44 +1,30 @@
+# User-specific config and logs
 config.json
 log.txt
 .superpowers
 
-target
-target/
+# .NET build output
+bin/
+obj/
+*.dll
+*.exe
 
-# Build output and packages
-/target/
-*.jar
-*.war
-*.ear
-
-# Logs
-*.log
+# NuGet
+/packages/
 
 # IDE files
 .idea/
-.project
-.classpath
-.settings/
-*.iml
-*.iws
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln.docstates
 
 # Operating system files
 .DS_Store
 Thumbs.db
 
-# Maven generated files
-.mvn/timing.properties
-
-# Package Files #
-*.jar
-*.war
-*.nar
-*.ear
+# Package files
 *.zip
 *.tar.gz
 *.rar
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
-replay_pid*
-

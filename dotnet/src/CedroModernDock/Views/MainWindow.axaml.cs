@@ -112,7 +112,15 @@ public partial class MainWindow : Window
 
         Task.Run(() =>
         {
-            var windows = _appServices.WindowPreviewService.LoadPreview(programItem);
+            List<WindowInfo> windows;
+            try
+            {
+                windows = _appServices.WindowPreviewService.LoadPreview(programItem);
+            }
+            catch (Exception)
+            {
+                windows = new List<WindowInfo>();
+            }
             Dispatcher.UIThread.Post(() => OnPreviewLoaded(requestId, button, vm, windows));
         });
     }
@@ -121,14 +129,22 @@ public partial class MainWindow : Window
         List<WindowInfo> windows)
     {
         if (requestId != _previewRequestId || _hoveredButton != button) return;
-        if (windows.Count == 0) return;
+        if (windows.Count == 0)
+        {
+            if (_previewPopup?.IsVisible == true)
+                HidePreview();
+            return;
+        }
         if (_appServices == null) return;
 
         var appearance = _appServices.AppearanceService;
-        _previewPopup ??= new WindowPreviewPopup();
-        _previewPopup.ThumbnailClicked = hwnd => OnPopupThumbnailClicked(hwnd);
-        _previewPopup.PointerEnteredCallback = OnPopupPointerEntered;
-        _previewPopup.PointerExitedCallback = OnPopupPointerExited;
+        if (_previewPopup == null)
+        {
+            _previewPopup = new WindowPreviewPopup();
+            _previewPopup.ThumbnailClicked = hwnd => OnPopupThumbnailClicked(hwnd);
+            _previewPopup.PointerEnteredCallback = OnPopupPointerEntered;
+            _previewPopup.PointerExitedCallback = OnPopupPointerExited;
+        }
         _previewPopup.ShowFor(windows, vm.Label,
             appearance.GetDockColorRGB(), appearance.GetDockBorderRounding(), button);
     }
@@ -145,6 +161,7 @@ public partial class MainWindow : Window
         ++_previewRequestId;
         _previewPopup?.HidePopup();
         _hoveredButton = null;
+        _isOverPreview = false;
     }
 
     private void OnPopupPointerEntered()
@@ -216,6 +233,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        HidePreview();
         if (DataContext is MainWindowViewModel vm)
             vm.Shutdown();
         _dockBehavior?.Dispose();

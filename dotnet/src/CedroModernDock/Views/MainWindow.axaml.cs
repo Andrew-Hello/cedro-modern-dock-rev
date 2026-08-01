@@ -44,6 +44,9 @@ public partial class MainWindow : Window
         _dockBehavior = new DockWindowBehavior(handle.Handle, UpdateStatus);
         _dockBehavior.Apply();
 
+        // TEMP SPIKE — remove after verification.
+        new SpikeThumbnailWindow(handle.Handle).Show();
+
         // Initialize the dock ViewModel (loads items, starts indicator watcher).
         if (DataContext is MainWindowViewModel vm)
         {

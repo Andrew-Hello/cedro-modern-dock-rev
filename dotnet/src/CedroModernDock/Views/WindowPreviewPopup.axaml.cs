@@ -29,6 +29,7 @@ public partial class WindowPreviewPopup : Window
     private string _colorRgb = "0, 0, 0, ";
     private int _rounding = 12;
     private IntPtr _hwnd;
+    private bool _regPostQueued;
 
     public WindowPreviewPopup()
     {
@@ -49,8 +50,15 @@ public partial class WindowPreviewPopup : Window
         BuildRows(windows);
         PositionNear(anchor);
         Show();
-        if (wasVisible)
-            Dispatcher.UIThread.Post(RegisterThumbnails, DispatcherPriority.Loaded);
+        if (wasVisible && !_regPostQueued)
+        {
+            _regPostQueued = true;
+            Dispatcher.UIThread.Post(() =>
+            {
+                _regPostQueued = false;
+                RegisterThumbnails();
+            }, DispatcherPriority.Loaded);
+        }
     }
 
     private void BuildRows(IReadOnlyList<WindowInfo> windows)

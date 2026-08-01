@@ -4,6 +4,8 @@
         Title="Cedro Modern Dock Preview"
         CanResize="False" SystemDecorations="None" ShowInTaskbar="False"
         Topmost="True" Background="Transparent" TransparencyLevelHint="Transparent"
-        ShowActivated="False" SizeToContent="WidthAndHeight">
+        ShowActivated="False" SizeToContent="WidthAndHeight"
+        PointerEntered="OnPointerEntered"
+        PointerExited="OnPointerExited">
     <StackPanel x:Name="RowsPanel" Orientation="Vertical" Spacing="6" Margin="4"/>
 </Window>

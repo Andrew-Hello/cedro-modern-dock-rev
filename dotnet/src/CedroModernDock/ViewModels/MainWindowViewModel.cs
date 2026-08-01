@@ -53,6 +53,9 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>Set by MainWindow — re-anchors the dock after dock content/settings change.</summary>
     public Action? RepositionAction { get; set; }
 
+    /// <summary>Set by MainWindow — dismisses the window-preview popup (dock refresh).</summary>
+    public Action? PreviewDismissAction { get; set; }
+
     public MainWindowViewModel()
     {
         LaunchCommand = new RelayCommand(_ => { });
@@ -91,6 +94,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         ApplyAppearance();
         RepositionAction?.Invoke();
+        PreviewDismissAction?.Invoke();
     }
     // --- continued below ---
 

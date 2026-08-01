@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
@@ -35,6 +36,13 @@ public partial class WindowPreviewPopup : Window
     {
         InitializeComponent();
     }
+
+    /// <summary>Invoked with the row's source HWND when a thumbnail row is clicked.</summary>
+    public Action<IntPtr>? ThumbnailClicked { get; set; }
+
+    /// <summary>Invoked when the pointer enters/exits the popup (keeps it open on hover).</summary>
+    public Action? PointerEnteredCallback { get; set; }
+    public Action? PointerExitedCallback { get; set; }
 
     /// <summary>Populates rows and positions the popup over <paramref name="anchor"/>.</summary>
     public void ShowFor(IReadOnlyList<WindowInfo> windows, string appLabel,
@@ -100,6 +108,7 @@ public partial class WindowPreviewPopup : Window
                 Child = content
             };
             RowsPanel.Children.Add(row);
+            row.PointerPressed += (_, _) => ThumbnailClicked?.Invoke(window.Handle);
             _rows.Add((IntPtr.Zero, thumbArea));
             _sources.Add(IntPtr.Zero);
         }
@@ -208,4 +217,8 @@ public partial class WindowPreviewPopup : Window
         ClearRows();
         Hide();
     }
+
+    private void OnPointerEntered(object? sender, PointerEventArgs e) => PointerEnteredCallback?.Invoke();
+
+    private void OnPointerExited(object? sender, PointerEventArgs e) => PointerExitedCallback?.Invoke();
 }

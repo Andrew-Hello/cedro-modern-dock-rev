@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -6,6 +8,7 @@ using Avalonia.Platform;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using CedroModernDock.Core.Application;
+using CedroModernDock.Core.Domain;
 using CedroModernDock.Core.Models;
 using CedroModernDock.Infrastructure.Windows.Native;
 using CedroModernDock.ViewModels;
@@ -16,10 +19,21 @@ public partial class MainWindow : Window
 {
     private DockWindowBehavior? _dockBehavior;
     private AppServices? _appServices;
+    private WindowPreviewPopup? _previewPopup;
+    private Button? _hoveredButton;
+    private int _previewRequestId;
+    private bool _isOverPreview;
+    private readonly DispatcherTimer _previewHideDebounce = new() { Interval = TimeSpan.FromMilliseconds(80) };
 
     public MainWindow()
     {
         InitializeComponent();
+        _previewHideDebounce.Tick += (_, _) =>
+        {
+            _previewHideDebounce.Stop();
+            if (!_isOverPreview)
+                HidePreview();
+        };
     }
 
     /// <summary>Receives the composed application services from the App composition root.</summary>
@@ -49,6 +63,7 @@ public partial class MainWindow : Window
         {
             vm.OpenSettingsAction = () => OpenSettings(vm);
             vm.RepositionAction = () => ApplyDockPosition();
+            vm.PreviewDismissAction = HidePreview;
             vm.Initialize();
         }
 
@@ -82,6 +97,74 @@ public partial class MainWindow : Window
     {
         if (_appServices?.PositioningService.IsDynamicPositioning() == false)
             ApplyDockPosition();
+    }
+
+    private void OnItemPointerEntered(object? sender, PointerEventArgs e)
+    {
+        if (sender is not Button button || _appServices == null) return;
+        if (button.DataContext is not DockItemViewModel vm || vm.Item is not DockProgramItemModel item)
+            return;
+
+        _hoveredButton = button;
+        _previewHideDebounce.Stop();
+        int requestId = ++_previewRequestId;
+        var programItem = item;
+
+        Task.Run(() =>
+        {
+            var windows = _appServices.WindowPreviewService.LoadPreview(programItem);
+            Dispatcher.UIThread.Post(() => OnPreviewLoaded(requestId, button, vm, windows));
+        });
+    }
+
+    private void OnPreviewLoaded(int requestId, Button button, DockItemViewModel vm,
+        List<WindowInfo> windows)
+    {
+        if (requestId != _previewRequestId || _hoveredButton != button) return;
+        if (windows.Count == 0) return;
+        if (_appServices == null) return;
+
+        var appearance = _appServices.AppearanceService;
+        _previewPopup ??= new WindowPreviewPopup();
+        _previewPopup.ThumbnailClicked = hwnd => OnPopupThumbnailClicked(hwnd);
+        _previewPopup.PointerEnteredCallback = OnPopupPointerEntered;
+        _previewPopup.PointerExitedCallback = OnPopupPointerExited;
+        _previewPopup.ShowFor(windows, vm.Label,
+            appearance.GetDockColorRGB(), appearance.GetDockBorderRounding(), button);
+    }
+
+    private void OnItemPointerExited(object? sender, PointerEventArgs e)
+    {
+        if (_hoveredButton == sender) _hoveredButton = null;
+        _previewHideDebounce.Stop();
+        _previewHideDebounce.Start();
+    }
+
+    private void HidePreview()
+    {
+        ++_previewRequestId;
+        _previewPopup?.HidePopup();
+        _hoveredButton = null;
+    }
+
+    private void OnPopupPointerEntered()
+    {
+        _isOverPreview = true;
+        _previewHideDebounce.Stop();
+    }
+
+    private void OnPopupPointerExited()
+    {
+        _isOverPreview = false;
+        _previewHideDebounce.Stop();
+        _previewHideDebounce.Start();
+    }
+
+    private void OnPopupThumbnailClicked(IntPtr sourceHwnd)
+    {
+        HidePreview();
+        if (sourceHwnd != IntPtr.Zero)
+            _appServices?.WindowPreviewService.Activate(new WindowInfo(sourceHwnd, ""));
     }
 
     /// <summary>Allows dragging the borderless dock window (DYNAMIC mode only).</summary>

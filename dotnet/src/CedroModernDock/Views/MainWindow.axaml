@@ -46,7 +46,9 @@
                             Padding="4"
                             Cursor="Hand"
                             ToolTip.Tip="{Binding Label}"
-                            RenderTransformOrigin="50%, 50%">
+                            RenderTransformOrigin="50%, 50%"
+                            PointerEntered="OnItemPointerEntered"
+                            PointerExited="OnItemPointerExited">
 
                         <!-- Hover scale animation. Both scale states come from styles:
                              a local RenderTransform would win over the :pointerover

@@ -8,7 +8,7 @@ namespace CedroModernDock.Infrastructure.Windows.Native;
 /// Direct equivalent of the JNA calls in the original Java project's NativeWindowUtils
 /// and WindowsIconHandler, now expressed as idiomatic .NET P/Invoke.
 /// </summary>
-internal static class Win32Constants
+public static class Win32Constants
 {
     // Window style indices
     public const int GWL_EXSTYLE = -20;
@@ -44,14 +44,14 @@ internal static class Win32Constants
 }
 
 /// <summary>Callback for EnumWindows.</summary>
-internal delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
 /// <summary>Callback for SetWindowSubclass (comctl32 window subclassing).</summary>
 internal delegate IntPtr SubclassProc(
     IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam,
     UIntPtr uIdSubclass, IntPtr dwRefData);
 
-internal static class User32
+public static class User32
 {
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);

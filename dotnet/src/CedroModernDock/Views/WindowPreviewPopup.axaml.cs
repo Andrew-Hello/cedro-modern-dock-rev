@@ -1,0 +1,201 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Platform;
+using Avalonia.Threading;
+using CedroModernDock.Core.Application;
+using CedroModernDock.Core.Domain;
+using CedroModernDock.Infrastructure.Windows.Native;
+
+namespace CedroModernDock.Views;
+
+/// <summary>
+/// Popup listing a program item's open windows as live DWM thumbnails.
+/// The window is fully transparent; thumbnails render beneath the content,
+/// so only the row borders/titles are drawn by Avalonia.
+/// </summary>
+public partial class WindowPreviewPopup : Window
+{
+    private const int ThumbWidth = 160;
+    private const int ThumbHeight = 90;
+
+    private readonly List<(IntPtr Thumb, Border Area)> _rows = new();
+    private readonly List<IntPtr> _sources = new();
+    private IReadOnlyList<IntPtr> _sourceHandles = Array.Empty<IntPtr>();
+    private string _appLabel = "";
+    private string _colorRgb = "0, 0, 0, ";
+    private int _rounding = 12;
+    private IntPtr _hwnd;
+
+    public WindowPreviewPopup()
+    {
+        InitializeComponent();
+    }
+
+    /// <summary>Populates rows and positions the popup over <paramref name="anchor"/>.</summary>
+    public void ShowFor(IReadOnlyList<WindowInfo> windows, string appLabel,
+        string colorRgb, int rounding, Button anchor)
+    {
+        _appLabel = appLabel;
+        _colorRgb = colorRgb;
+        _rounding = rounding;
+        _hwnd = IntPtr.Zero;
+        _sourceHandles = new List<IntPtr>(windows.Select(w => w.Handle));
+
+        BuildRows(windows);
+        PositionNear(anchor);
+        Show();
+    }
+
+    private void BuildRows(IReadOnlyList<WindowInfo> windows)
+    {
+        ClearRows();
+        _rows.Clear();
+        _sources.Clear();
+
+        var parts = _colorRgb.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        byte r = parts.Length > 0 && byte.TryParse(parts[0], out var rv) ? rv : (byte)0;
+        byte g = parts.Length > 1 && byte.TryParse(parts[1], out var gv) ? gv : (byte)0;
+        byte b = parts.Length > 2 && byte.TryParse(parts[2], out var bv) ? bv : (byte)0;
+        var borderBrush = new SolidColorBrush(Color.FromArgb(160, r, g, b));
+        var textBrush = new SolidColorBrush(
+            WindowTitleFormatter.IsDarkBackground(_colorRgb) ? Colors.White : Colors.Black);
+
+        foreach (var window in windows)
+        {
+            var thumbArea = new Border { Width = ThumbWidth, Height = ThumbHeight, Background = Brushes.Transparent };
+            var title = new TextBlock
+            {
+                Text = WindowTitleFormatter.Format(window.Title, _appLabel),
+                Foreground = textBrush,
+                FontSize = 12,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                Margin = new Thickness(0, 4, 0, 4)
+            };
+            var content = new StackPanel { Orientation = Orientation.Vertical };
+            content.Children.Add(thumbArea);
+            content.Children.Add(title);
+
+            var row = new Border
+            {
+                CornerRadius = new CornerRadius(_rounding),
+                BorderBrush = borderBrush,
+                BorderThickness = new Thickness(1),
+                Background = Brushes.Transparent,
+                Padding = new Thickness(6, 6, 6, 0),
+                Child = content
+            };
+            RowsPanel.Children.Add(row);
+            _rows.Add((IntPtr.Zero, thumbArea));
+            _sources.Add(IntPtr.Zero);
+        }
+    }
+
+    private void ClearRows()
+    {
+        foreach (var (thumb, _) in _rows)
+            DwmThumbnailInterop.Unregister(thumb);
+        RowsPanel.Children.Clear();
+    }
+
+    private void PositionNear(Button anchor)
+    {
+        var anchorCenter = anchor.PointToScreen(new Point(anchor.Bounds.Width / 2, anchor.Bounds.Height / 2));
+        Measure(Size.Infinity);
+        double scale = RenderScaling;
+        int w = (int)(DesiredSize.Width * scale);
+        int h = (int)(DesiredSize.Height * scale);
+
+        var screens = Screens;
+        var screen = screens.ScreenFromPoint(anchorCenter);
+        if (screen is null && screens.All.Count > 0)
+            screen = screens.All[0];
+
+        // Place below the dock by default; above when the dock is in the lower half.
+        int popupX = anchorCenter.X - w / 2;
+        int popupY = anchorCenter.Y + (int)(anchor.Bounds.Height * scale / 2) + 5;
+        if (screen is not null)
+        {
+            var work = screen.WorkingArea;
+            if (popupY + h > work.Bottom)
+                popupY = anchorCenter.Y - (int)(anchor.Bounds.Height * scale / 2) - h - 5;
+
+            popupX = Math.Max(work.X + 4, Math.Min(popupX, work.Right - w - 4));
+            popupY = Math.Max(work.Y + 4, popupY);
+        }
+        Position = new PixelPoint(popupX, popupY);
+    }
+
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        _hwnd = TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+
+        // Never steal focus: same extended styles as DockWindowBehavior.ApplyExtendedStyles.
+        if (_hwnd != IntPtr.Zero)
+        {
+            IntPtr exStylePtr = User32.GetWindowLongPtr(_hwnd, Win32Constants.GWL_EXSTYLE);
+            int exStyle = exStylePtr.ToInt32();
+            exStyle |= Win32Constants.WS_EX_NOACTIVATE | Win32Constants.WS_EX_TOOLWINDOW;
+            exStyle &= ~Win32Constants.WS_EX_APPWINDOW;
+            User32.SetWindowLongPtr(_hwnd, Win32Constants.GWL_EXSTYLE, new IntPtr(exStyle));
+        }
+
+        // Single registration path: layout must be final before registering
+        // thumbnails, so defer to Loaded priority. Source HWNDs were stored by
+        // ShowFor (_sourceHandles).
+        Dispatcher.UIThread.Post(RegisterThumbnails, DispatcherPriority.Loaded);
+    }
+
+    private void RegisterThumbnails()
+    {
+        if (_hwnd == IntPtr.Zero) return;
+        double scale = RenderScaling;
+
+        for (int i = 0; i < _rows.Count && i < _sourceHandles.Count; i++)
+        {
+            var area = _rows[i].Area;
+            var matrix = area.TransformToVisual(this);
+            if (matrix == null) continue;
+            var bounds = area.Bounds.TransformToAABB(matrix.Value);
+            if (bounds.Width <= 0 || bounds.Height <= 0) continue;
+
+            IntPtr sourceHwnd = _sourceHandles[i];
+            if (sourceHwnd == IntPtr.Zero) continue;
+            if (!DwmThumbnailInterop.Register(_hwnd, sourceHwnd, out IntPtr thumb)) continue;
+            _rows[i] = (thumb, area);
+            _sources[i] = sourceHwnd;
+
+            if (!DwmThumbnailInterop.QuerySourceSize(thumb, out var srcSize) || srcSize.Cx <= 0 || srcSize.Cy <= 0)
+                continue;
+
+            // Fit preserving aspect inside the area (letterbox), physical pixels.
+            double areaW = bounds.Width * scale;
+            double areaH = bounds.Height * scale;
+            double ar = (double)srcSize.Cx / srcSize.Cy;
+            double fitW = areaW, fitH = areaW / ar;
+            if (fitH > areaH) { fitH = areaH; fitW = areaH * ar; }
+            double ox = bounds.X * scale + (areaW - fitW) / 2;
+            double oy = bounds.Y * scale + (areaH - fitH) / 2;
+
+            var rect = new DwmThumbnailInterop.RECT
+            {
+                Left = (int)ox,
+                Top = (int)oy,
+                Right = (int)Math.Ceiling(ox + fitW),
+                Bottom = (int)Math.Ceiling(oy + fitH)
+            };
+            DwmThumbnailInterop.Update(thumb, rect);
+        }
+    }
+
+    public void HidePopup()
+    {
+        ClearRows();
+        Hide();
+    }
+}

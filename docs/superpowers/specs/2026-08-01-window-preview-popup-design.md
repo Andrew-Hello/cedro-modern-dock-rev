@@ -80,6 +80,9 @@ Pure static logic, direct port of JavaFX `formatWindowTitle`:
   trailing `" - <appLabel>"`; empty result falls back to the original.
 - `Truncate(title, 40)`: appends `"..."` past 40 chars.
 - `Format(title, appLabel)`: strip then truncate.
+- `TextColorForBackground(colorRgb)`: returns the readable text color
+  (black/white) from the dock background brightness (direct port of JavaFX
+  `getTextColorForBackground`). Pure logic, no UI dependency.
 
 Unit-testable; used by the popup to display titles.
 
@@ -106,7 +109,12 @@ Unit-testable; used by the popup to display titles.
   Settings / module / folder items show no popup.
 - **Positioning:** centered horizontally over the hovered icon, 5px gap.
   Below the dock bar if the dock is in the upper half of the screen, above if
-  in the lower half (ported from JavaFX `reposition`).
+  in the lower half (ported from JavaFX `reposition`). Clamp the final
+  position to the screen working area so the popup never exceeds screen
+  bounds on edge-anchored docks.
+- **DPI:** thumbnail destination rects are given to DWM in physical pixels of
+  the popup HWND; convert the 160x90 logical-area rect by the popup's
+  pixel-scale factor before calling `DwmUpdateThumbnailProperties`.
 - **Reposition on size change:** when popup content/layout changes, recompute
   the position and the thumbnail destination rects.
 - **Thumbnails:**

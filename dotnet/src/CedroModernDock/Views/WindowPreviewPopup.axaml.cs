@@ -5,7 +5,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.Platform;
 using Avalonia.Threading;
 using CedroModernDock.Core.Application;
 using CedroModernDock.Core.Domain;
@@ -46,9 +45,12 @@ public partial class WindowPreviewPopup : Window
         _hwnd = IntPtr.Zero;
         _sourceHandles = new List<IntPtr>(windows.Select(w => w.Handle));
 
+        bool wasVisible = IsVisible;
         BuildRows(windows);
         PositionNear(anchor);
         Show();
+        if (wasVisible)
+            Dispatcher.UIThread.Post(RegisterThumbnails, DispatcherPriority.Loaded);
     }
 
     private void BuildRows(IReadOnlyList<WindowInfo> windows)

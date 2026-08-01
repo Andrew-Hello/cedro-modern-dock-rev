@@ -3,6 +3,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Platform;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using CedroModernDock.Core.Application;
 using CedroModernDock.Core.Models;
 using CedroModernDock.Infrastructure.Windows.Native;
@@ -42,26 +44,61 @@ public partial class MainWindow : Window
         _dockBehavior = new DockWindowBehavior(handle.Handle, UpdateStatus);
         _dockBehavior.Apply();
 
-        // Apply saved dock position (static anchor or dynamic coordinates).
-        if (_appServices != null)
-        {
-            var (x, y) = _appServices.PositioningService.ResolvePosition(Width, Height);
-            Position = new PixelPoint((int)x, (int)y);
-        }
-
         // Initialize the dock ViewModel (loads items, starts indicator watcher).
         if (DataContext is MainWindowViewModel vm)
         {
             vm.OpenSettingsAction = () => OpenSettings(vm);
+            vm.RepositionAction = () => ApplyDockPosition();
             vm.Initialize();
+        }
+
+        ApplyDockPosition(force: true);
+
+        // Static anchors must use the finalized window size, which SizeToContent
+        // only produces after the first layout pass. Re-apply once layout settles
+        // and whenever the dock content resizes the window.
+        if (_appServices?.PositioningService.IsDynamicPositioning() == false)
+        {
+            SizeChanged += OnDockSizeChanged;
+            Dispatcher.UIThread.Post(() => ApplyDockPosition(), DispatcherPriority.Loaded);
         }
     }
 
-    /// <summary>Allows dragging the borderless dock window.</summary>
+    /// <summary>
+    /// Applies the dock position from the positioning service. In STATIC mode
+    /// this re-anchors the dock to the current screen edge; in DYNAMIC mode the
+    /// saved position is only applied once at startup (force) so the user's
+    /// drags are never overridden by subsequent refreshes.
+    /// </summary>
+    private void ApplyDockPosition(bool force = false)
+    {
+        if (_appServices == null) return;
+        if (!force && _appServices.PositioningService.IsDynamicPositioning()) return;
+        var (x, y) = _appServices.PositioningService.ResolvePosition(Width, Height);
+        Position = new PixelPoint((int)x, (int)y);
+    }
+
+    private void OnDockSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (_appServices?.PositioningService.IsDynamicPositioning() == false)
+            ApplyDockPosition();
+    }
+
+    /// <summary>Allows dragging the borderless dock window (DYNAMIC mode only).</summary>
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (e.Pointer.IsPrimary)
-            BeginMoveDrag(e);
+        // Don't start a window drag when pressing a dock item button — the
+        // button must receive the click. Drag only when pressing the dock
+        // background itself.
+        if (!e.Pointer.IsPrimary)
+            return;
+        if (e.Source is Visual source && source.FindAncestorOfType<Button>() != null)
+            return;
+        // In STATIC mode the dock is anchored to the screen and must not be
+        // dragged; dragging is only meaningful in DYNAMIC mode.
+        if (_appServices == null || !_appServices.PositioningService.IsDynamicPositioning())
+            return;
+        BeginMoveDrag(e);
     }
 
     private void UpdateStatus(string status)

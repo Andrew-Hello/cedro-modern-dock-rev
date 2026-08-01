@@ -10,5 +10,8 @@
 
     <Application.Styles>
         <FluentTheme />
+        <!-- The Avalonia ColorPicker is not themed by the base Fluent theme; its
+             control template comes from this separate package resource. -->
+        <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
     </Application.Styles>
 </Application>

@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using System;
+using System.IO;
 using CedroModernDock.Core.Application;
 using CedroModernDock.Infrastructure.Windows.Adapters;
 using CedroModernDock.Infrastructure.Windows.Persistence;
@@ -16,6 +17,10 @@ sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // The app is a WinExe (no console), so runtime failures are otherwise
+        // silent. Log unhandled exceptions for diagnostics.
+        CrashLogger.Hook();
+
         // Single-instance guard — prevents multiple dock instances.
         // Port of App.java's SingleInstanceGuard + localized warning dialog.
         _singleInstanceGuard = new SingleInstanceGuard();
@@ -48,4 +53,30 @@ sealed class Program
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
+}
+
+internal static class CrashLogger
+{
+    private static readonly object Sync = new();
+    private static readonly string Path =
+        System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "CedroModernDock", "crash-log.txt");
+
+    public static void Hook()
+    {
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            Log($"UNHANDLED EXCEPTION: {e.ExceptionObject}");
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+            Log($"UNOBSERVED TASK EXCEPTION: {e.Exception}");
+    }
+
+    public static void Log(string message)
+    {
+        try
+        {
+            lock (Sync)
+                File.AppendAllText(Path, $"[{DateTime.Now:HH:mm:ss.fff}] {message}{Environment.NewLine}");
+        }
+        catch { }
+    }
 }

@@ -12,7 +12,6 @@
         CanResize="False"
         SystemDecorations="None"
         ShowInTaskbar="False"
-        Topmost="True"
         TransparencyLevelHint="Transparent"
         Background="Transparent"
         SizeToContent="Width"
@@ -25,7 +24,7 @@
     <!-- Dock bar: rounded background with items -->
     <Border x:Name="DockBar"
             Background="{Binding DockBackground}"
-            CornerRadius="{Binding BorderRounding}"
+            CornerRadius="{Binding DockCornerRadius}"
             Padding="10"
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
@@ -41,17 +40,19 @@
             <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:DockItemViewModel">
                     <Button Command="{Binding ClickCommand}"
-                            CommandParameter="{Binding $self}"
+                            CommandParameter="{Binding}"
                             Background="Transparent"
                             BorderBrush="Transparent"
                             Padding="4"
                             Cursor="Hand"
-                            ToolTip.Tip="{Binding Label}">
+                            ToolTip.Tip="{Binding Label}"
+                            RenderTransformOrigin="50%, 50%">
 
-                        <!-- Hover scale animation via ScaleTransform + Transitions -->
-                        <Button.RenderTransform>
-                            <ScaleTransform ScaleX="1" ScaleY="1" />
-                        </Button.RenderTransform>
+                        <!-- Hover scale animation. Both scale states come from styles:
+                             a local RenderTransform would win over the :pointerover
+                             style setter and disable the effect. scale(n) parses to
+                             TransformOperations, which TransformOperationsTransition
+                             animates smoothly. -->
                         <Button.Transitions>
                             <Transitions>
                                 <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
@@ -59,8 +60,11 @@
                         </Button.Transitions>
 
                         <Button.Styles>
+                            <Style Selector="Button">
+                                <Setter Property="RenderTransform" Value="scale(1)" />
+                            </Style>
                             <Style Selector="Button:pointerover">
-                                <Setter Property="RenderTransform" Value="scale 1.3" />
+                                <Setter Property="RenderTransform" Value="scale(1.3)" />
                             </Style>
                         </Button.Styles>
 

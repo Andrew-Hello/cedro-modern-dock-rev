@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using CedroModernDock.Core.Application;
@@ -8,6 +9,8 @@ namespace CedroModernDock.Views;
 
 public partial class SettingsWindow : Window
 {
+    private static SettingsWindow? _instance;
+
     private SettingsViewModel? _vm;
     private AppServices? _appServices;
     private Action? _dockRefreshAction;
@@ -20,12 +23,22 @@ public partial class SettingsWindow : Window
     public static void Open(AppServices appServices, Window owner,
         Action dockRefreshAction, Action<DockPositioningMode> positioningModeChangeAction)
     {
+        // Only one settings window at a time: focus the existing one.
+        if (_instance != null)
+        {
+            _instance.WindowState = WindowState.Normal;
+            _instance.Activate();
+            return;
+        }
+
         var vm = new SettingsViewModel(appServices, dockRefreshAction, positioningModeChangeAction);
         var window = new SettingsWindow
         {
             DataContext = vm, _vm = vm,
             _appServices = appServices, _dockRefreshAction = dockRefreshAction
         };
+        _instance = window;
+        window.Closed += (_, _) => _instance = null;
         vm.Initialize();
         window.Show(owner);
     }

@@ -75,7 +75,7 @@
                         <StackPanel Orientation="Vertical" Spacing="4">
                             <TextBlock Text="{Binding BgColorTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
                             <TextBlock Text="{Binding BgColorHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
-                            <ColorPicker Color="{Binding DockColor}" Margin="0,8,0,0"/>
+                            <ColorView Color="{Binding DockColor}" Height="300" Margin="0,8,0,0"/>
                         </StackPanel>
                     </StackPanel>
                 </TabItem>

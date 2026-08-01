@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia;
 using Avalonia.Media;
 using CedroModernDock.Core.Application;
 using CedroModernDock.Core.Models;
@@ -31,7 +32,16 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public int IconsSize { get => _iconsSize; set => SetProperty(ref _iconsSize, value); }
     public int Spacing { get => _spacing; set => SetProperty(ref _spacing, value); }
-    public int BorderRounding { get => _borderRounding; set => SetProperty(ref _borderRounding, value); }
+    public int BorderRounding
+    {
+        get => _borderRounding;
+        set
+        {
+            if (SetProperty(ref _borderRounding, value))
+                OnPropertyChanged(nameof(DockCornerRadius));
+        }
+    }
+    public CornerRadius DockCornerRadius => new CornerRadius(BorderRounding);
     public IBrush DockBackground { get => _dockBackground; set => SetProperty(ref _dockBackground, value); }
     public string StatusText { get => _statusText; set => SetProperty(ref _statusText, value); }
 
@@ -39,6 +49,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>Set by MainWindow — opens the settings window with this window as owner.</summary>
     public Action? OpenSettingsAction { get; set; }
+
+    /// <summary>Set by MainWindow — re-anchors the dock after dock content/settings change.</summary>
+    public Action? RepositionAction { get; set; }
 
     public MainWindowViewModel()
     {
@@ -77,6 +90,7 @@ public partial class MainWindowViewModel : ViewModelBase
             }
         }
         ApplyAppearance();
+        RepositionAction?.Invoke();
     }
     // --- continued below ---
 
@@ -100,12 +114,26 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             string? iconPath = _appServices!.IconGateway.ResolveProgramIcon(programItem.ExecutablePath);
             var icon = IconLoader.LoadFromFile(iconPath);
+            var itemVm = new DockItemViewModel(item, label, LaunchCommand,
+                showIndicator: true, executablePath: programItem.ExecutablePath) { Icon = icon };
+
+            // The icon may not be cached yet (first run with a new item). Extract it in the
+            // background, then push the resulting bitmap into the ViewModel so the dock
+            // updates without requiring a restart.
             if (icon == null)
             {
-                _ = Task.Run(() => _appServices.IconGateway.CacheProgramIcon(programItem.ExecutablePath));
+                string exe = programItem.ExecutablePath;
+                _ = Task.Run(() =>
+                {
+                    _appServices.IconGateway.CacheProgramIcon(exe);
+                    string? cached = _appServices.IconGateway.ResolveProgramIcon(exe);
+                    var loaded = IconLoader.LoadFromFile(cached);
+                    if (loaded != null)
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() => itemVm.Icon = loaded);
+                });
             }
-            return new DockItemViewModel(item, label, LaunchCommand,
-                showIndicator: true, executablePath: programItem.ExecutablePath) { Icon = icon };
+
+            return itemVm;
         }
 
         if (item is DockFolderItemModel folderItem)

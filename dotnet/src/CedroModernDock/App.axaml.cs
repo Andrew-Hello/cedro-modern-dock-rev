@@ -4,6 +4,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using System.Linq;
+using Avalonia.Platform;
 using Avalonia.Markup.Xaml;
 using CedroModernDock.Core.Application;
 using CedroModernDock.Core.Models;
@@ -54,11 +55,27 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
+    private static MemoryStream? _trayIconStream;
+
     private void WireTrayIcon()
     {
+        // Resolve the embedded Avalonia asset via AssetLoader.Open() with an
+        // avares:// URI (same pattern as IconLoader.LoadFromAsset).  WindowIcon(string)
+        // treats the argument as a file path on disk, which fails at runtime.
+        //
+        // Note: WindowIcon(Stream) may hold the stream until the icon is used,
+        // so the stream must stay alive for the lifetime of the tray icon.
+        _trayIconStream = new MemoryStream();
+        using (var source = AssetLoader.Open(
+            new Uri("avares://CedroModernDock/Assets/icons/cedro/logo_32.png")))
+        {
+            source.CopyTo(_trayIconStream);
+        }
+        _trayIconStream.Position = 0;
+
         var trayIcon = new TrayIcon
         {
-            Icon = new WindowIcon("Assets/icons/cedro/logo_32.png"),
+            Icon = new WindowIcon(_trayIconStream),
             ToolTipText = "Cedro Modern Dock",
             Menu = new NativeMenu()
         };

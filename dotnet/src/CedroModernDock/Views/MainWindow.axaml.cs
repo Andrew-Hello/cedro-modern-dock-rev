@@ -146,7 +146,8 @@ public partial class MainWindow : Window
             _previewPopup.PointerExitedCallback = OnPopupPointerExited;
         }
         _previewPopup.ShowFor(windows, vm.Label,
-            appearance.GetDockColorRGB(), appearance.GetDockBorderRounding(), button);
+            appearance.GetDockColorRGB(), appearance.GetDockBorderRounding(),
+            appearance.GetDockTransparencyPercentage() / 100.0, button);
     }
 
     private void OnItemPointerExited(object? sender, PointerEventArgs e)

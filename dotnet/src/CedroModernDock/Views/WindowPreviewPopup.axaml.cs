@@ -28,13 +28,27 @@ public partial class WindowPreviewPopup : Window
     private IReadOnlyList<IntPtr> _sourceHandles = Array.Empty<IntPtr>();
     private string _appLabel = "";
     private string _colorRgb = "0, 0, 0, ";
+    private double _transparency = 0.3;
     private int _rounding = 12;
     private IntPtr _hwnd;
     private bool _regPostQueued;
+    private Button? _positionAnchor;
+    private bool _repositionPending;
 
     public WindowPreviewPopup()
     {
         InitializeComponent();
+        // Position only once the window has a real layout size: before the first
+        // Show the content tree is not attached (DesiredSize is 0), and after
+        // BuildRows the measure is invalidated, so positioning in ShowFor would
+        // anchor the popup to the item's edge instead of centering it.
+        LayoutUpdated += (_, _) =>
+        {
+            if (!_repositionPending) return;
+            _repositionPending = false;
+            if (_positionAnchor is { } anchor)
+                PositionNear(anchor);
+        };
     }
 
     /// <summary>Invoked with the row's source HWND when a thumbnail row is clicked.</summary>
@@ -46,17 +60,20 @@ public partial class WindowPreviewPopup : Window
 
     /// <summary>Populates rows and positions the popup over <paramref name="anchor"/>.</summary>
     public void ShowFor(IReadOnlyList<WindowInfo> windows, string appLabel,
-        string colorRgb, int rounding, Button anchor)
+        string colorRgb, int rounding, double transparency, Button anchor)
     {
         _appLabel = appLabel;
         _colorRgb = colorRgb;
         _rounding = rounding;
+        _transparency = transparency;
         _hwnd = IntPtr.Zero;
         _sourceHandles = new List<IntPtr>(windows.Select(w => w.Handle));
 
         bool wasVisible = IsVisible;
+        _positionAnchor = anchor;
+        _repositionPending = true;
         BuildRows(windows);
-        PositionNear(anchor);
+        if (wasVisible) PositionNear(anchor);
         Show();
         if (wasVisible && !_regPostQueued)
         {
@@ -79,7 +96,8 @@ public partial class WindowPreviewPopup : Window
         byte r = parts.Length > 0 && byte.TryParse(parts[0], out var rv) ? rv : (byte)0;
         byte g = parts.Length > 1 && byte.TryParse(parts[1], out var gv) ? gv : (byte)0;
         byte b = parts.Length > 2 && byte.TryParse(parts[2], out var bv) ? bv : (byte)0;
-        var borderBrush = new SolidColorBrush(Color.FromArgb(160, r, g, b));
+        byte alpha = (byte)(_transparency * 255);
+        var rowBrush = new SolidColorBrush(Color.FromArgb(alpha, r, g, b));
         var textBrush = new SolidColorBrush(
             WindowTitleFormatter.IsDarkBackground(_colorRgb) ? Colors.White : Colors.Black);
 
@@ -91,6 +109,10 @@ public partial class WindowPreviewPopup : Window
                 Text = WindowTitleFormatter.Format(window.Title, _appLabel),
                 Foreground = textBrush,
                 FontSize = 12,
+                // Cap the popup width at the thumbnail size: long titles must
+                // never widen the popup beyond the previews it contains.
+                MaxWidth = ThumbWidth,
+                TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis,
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                 Margin = new Thickness(0, 4, 0, 4)
             };
@@ -101,9 +123,8 @@ public partial class WindowPreviewPopup : Window
             var row = new Border
             {
                 CornerRadius = new CornerRadius(_rounding),
-                BorderBrush = borderBrush,
-                BorderThickness = new Thickness(1),
-                Background = Brushes.Transparent,
+                // Same background and transparency as the dock itself.
+                Background = rowBrush,
                 Padding = new Thickness(6, 6, 6, 0),
                 Child = content
             };
@@ -123,25 +144,40 @@ public partial class WindowPreviewPopup : Window
 
     private void PositionNear(Button anchor)
     {
-        var anchorCenter = anchor.PointToScreen(new Point(anchor.Bounds.Width / 2, anchor.Bounds.Height / 2));
         Measure(Size.Infinity);
         double scale = RenderScaling;
         int w = (int)(DesiredSize.Width * scale);
         int h = (int)(DesiredSize.Height * scale);
+
+        var anchorCenter = anchor.PointToScreen(new Point(anchor.Bounds.Width / 2, anchor.Bounds.Height / 2));
 
         var screens = Screens;
         var screen = screens.ScreenFromPoint(anchorCenter);
         if (screen is null && screens.All.Count > 0)
             screen = screens.All[0];
 
+        // Gap (DIPs) between the item button and the dock window's own border:
+        // the popup must sit outside the dock, not just below the button.
+        double gapBelow = 0, gapAbove = 0;
+        if (TopLevel.GetTopLevel(anchor) is { } root &&
+            anchor.TransformToVisual(root) is { } transform)
+        {
+            gapBelow = root.Bounds.Height - new Point(0, anchor.Bounds.Height).Transform(transform).Y;
+            gapAbove = new Point(0, 0).Transform(transform).Y;
+        }
+
         // Place below the dock by default; above when the dock is in the lower half.
+        var anchorBottom = anchor.PointToScreen(new Point(anchor.Bounds.Width / 2, anchor.Bounds.Height));
         int popupX = anchorCenter.X - w / 2;
-        int popupY = anchorCenter.Y + (int)(anchor.Bounds.Height * scale / 2) + 5;
+        int popupY = (int)(anchorBottom.Y + gapBelow * scale) + 6;
         if (screen is not null)
         {
             var work = screen.WorkingArea;
             if (popupY + h > work.Bottom)
-                popupY = anchorCenter.Y - (int)(anchor.Bounds.Height * scale / 2) - h - 5;
+            {
+                var anchorTop = anchor.PointToScreen(new Point(anchor.Bounds.Width / 2, 0));
+                popupY = (int)(anchorTop.Y - gapAbove * scale) - h - 6;
+            }
 
             popupX = Math.Max(work.X + 4, Math.Min(popupX, work.Right - w - 4));
             popupY = Math.Max(work.Y + 4, popupY);

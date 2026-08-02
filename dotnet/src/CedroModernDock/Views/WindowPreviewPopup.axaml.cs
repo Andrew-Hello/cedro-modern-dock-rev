@@ -177,14 +177,14 @@ public partial class WindowPreviewPopup : Window
         // Place below the dock by default; above when the dock is in the lower half.
         var anchorBottom = anchor.PointToScreen(new Point(anchor.Bounds.Width / 2, anchor.Bounds.Height));
         int popupX = anchorCenter.X - w / 2;
-        int popupY = (int)(anchorBottom.Y + gapBelow * scale) + 6;
+        int popupY = (int)(anchorBottom.Y + gapBelow * scale) + 4;
         if (screen is not null)
         {
             var work = screen.WorkingArea;
             if (popupY + h > work.Bottom)
             {
                 var anchorTop = anchor.PointToScreen(new Point(anchor.Bounds.Width / 2, 0));
-                popupY = (int)(anchorTop.Y - gapAbove * scale) - h - 6;
+                popupY = (int)(anchorTop.Y - gapAbove * scale) - h - 4;
             }
 
             popupX = Math.Max(work.X + 4, Math.Min(popupX, work.Right - w - 4));
@@ -225,11 +225,6 @@ public partial class WindowPreviewPopup : Window
     {
         if (_hwnd == IntPtr.Zero) return;
         double scale = RenderScaling;
-        var parts = _colorRgb.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-        byte r = parts.Length > 0 && byte.TryParse(parts[0], out var rv) ? rv : (byte)0;
-        byte g = parts.Length > 1 && byte.TryParse(parts[1], out var gv) ? gv : (byte)0;
-        byte b = parts.Length > 2 && byte.TryParse(parts[2], out var bv) ? bv : (byte)0;
-        uint borderColor = DwmThumbnailInterop.ToColorRef(r, g, b);
 
         for (int i = 0; i < _rows.Count && i < _sourceHandles.Count; i++)
         {
@@ -252,7 +247,7 @@ public partial class WindowPreviewPopup : Window
             ThumbnailWindow thumb;
             try
             {
-                thumb = new ThumbnailWindow(sourceHwnd, px, py, pw, ph, borderColor);
+                thumb = new ThumbnailWindow(sourceHwnd, px, py, pw, ph);
             }
             catch (Exception)
             {

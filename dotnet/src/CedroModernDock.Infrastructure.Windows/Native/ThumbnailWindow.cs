@@ -17,7 +17,6 @@ public sealed class ThumbnailWindow : IDisposable
     private const string ClassName = "CedroDockThumbnailWindow";
 
     private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
-    private const int DWMWA_BORDER_COLOR = 34;
     private const int DWMWCP_ROUND = 2;
 
     private static readonly IntPtr _hInstance = Kernel32.GetModuleHandle(null);
@@ -57,12 +56,10 @@ public sealed class ThumbnailWindow : IDisposable
     }
 
     /// <summary>
-    /// Creates a rounded, click-through thumbnail window for <paramref name="sourceHwnd"/>.
-    /// <paramref name="borderColor"/> is a COLORREF (0x00BBGGRR) used for the 1px DWM
-    /// border drawn around rounded windows; pass the popup row background color so the
-    /// ring blends into it.
+    /// Creates a rounded, click-through thumbnail window for <paramref name="sourceHwnd"/>,
+    /// with no DWM border (DWMWA_WINDOW_CORNER_PREFERENCE only).
     /// </summary>
-    public ThumbnailWindow(IntPtr sourceHwnd, int x, int y, int width, int height, uint borderColor)
+    public ThumbnailWindow(IntPtr sourceHwnd, int x, int y, int width, int height)
     {
         _x = x; _y = y; _width = width; _height = height;
         _hwnd = User32.CreateWindowEx(
@@ -76,7 +73,6 @@ public sealed class ThumbnailWindow : IDisposable
 
         int corner = DWMWCP_ROUND;
         DwmThumbnailInterop.SetWindowAttribute(_hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, corner);
-        DwmThumbnailInterop.SetWindowAttribute(_hwnd, DWMWA_BORDER_COLOR, (int)borderColor);
 
         if (!DwmThumbnailInterop.Register(_hwnd, sourceHwnd, out _thumb))
             throw new InvalidOperationException("Failed to register DWM thumbnail");

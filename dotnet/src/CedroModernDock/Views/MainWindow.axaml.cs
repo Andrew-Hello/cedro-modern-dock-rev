@@ -28,12 +28,24 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        // The popup hides only when the pointer is neither over the popup nor
+        // over a native thumbnail window (thumbnails are separate top-level
+        // windows, so leaving the popup onto a thumbnail fires PointerExited).
         _previewHideDebounce.Tick += (_, _) =>
         {
             _previewHideDebounce.Stop();
-            if (!_isOverPreview)
+            if (IsPointerOverPreview())
+                _previewHideDebounce.Start();
+            else
                 HidePreview();
         };
+    }
+
+    private bool IsPointerOverPreview()
+    {
+        if (_previewPopup is not { IsVisible: true } popup) return false;
+        if (!User32.GetCursorPos(out POINT pt)) return false;
+        return popup.IsPointOverPopup(pt.X, pt.Y);
     }
 
     /// <summary>Receives the composed application services from the App composition root.</summary>

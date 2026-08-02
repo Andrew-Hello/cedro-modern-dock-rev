@@ -56,6 +56,9 @@ public static class DwmThumbnailInterop
     [DllImport("dwmapi.dll")]
     private static extern int DwmQueryThumbnailSourceSize(IntPtr hThumbnailId, out DwmSize pSize);
 
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
+
     /// <summary>Registers a live thumbnail of <paramref name="sourceHwnd"/> into <paramref name="destHwnd"/>.</summary>
     public static bool Register(IntPtr destHwnd, IntPtr sourceHwnd, out IntPtr thumbId)
     {
@@ -95,4 +98,18 @@ public static class DwmThumbnailInterop
         if (thumbId == IntPtr.Zero) return false;
         return DwmQueryThumbnailSourceSize(thumbId, out size) == 0;
     }
+
+    /// <summary>
+    /// Sets a DWM window attribute (e.g. DWMWA_WINDOW_CORNER_PREFERENCE).
+    /// Best-effort: returns false on failure (e.g. unsupported on Win10).
+    /// </summary>
+    public static bool SetWindowAttribute(IntPtr hwnd, int attribute, int value)
+    {
+        if (hwnd == IntPtr.Zero) return false;
+        int v = value;
+        return DwmSetWindowAttribute(hwnd, attribute, ref v, sizeof(int)) == 0;
+    }
+
+    /// <summary>Converts an ARGB color to a COLORREF (0x00BBGGRR) for DWMWA_BORDER_COLOR.</summary>
+    public static uint ToColorRef(byte r, byte g, byte b) => (uint)(r | (g << 8) | (b << 16));
 }

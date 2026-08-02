@@ -35,6 +35,10 @@ public static class Win32Constants
     public const int SC_MINIMIZE = 0xF020;
     public const int SIZE_MINIMIZED = 0;
 
+    // Window styles
+    public const uint WS_POPUP = 0x80000000;
+    public const uint WS_VISIBLE = 0x10000000;
+
     // Process access rights
     public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
 
@@ -45,6 +49,33 @@ public static class Win32Constants
 
 /// <summary>Callback for EnumWindows.</summary>
 public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+/// <summary>Native POINT structure.</summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct POINT
+{
+    public int X;
+    public int Y;
+}
+
+/// <summary>Callback for window class WndProc.</summary>
+public delegate IntPtr WndProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
+
+/// <summary>Native WNDCLASS structure (Unicode).</summary>
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+public struct WNDCLASS
+{
+    public uint style;
+    public IntPtr lpfnWndProc;
+    public int cbClsExtra;
+    public int cbWndExtra;
+    public IntPtr hInstance;
+    public IntPtr hIcon;
+    public IntPtr hCursor;
+    public IntPtr hbrBackground;
+    [MarshalAs(UnmanagedType.LPWStr)] public string? lpszMenuName;
+    [MarshalAs(UnmanagedType.LPWStr)] public string? lpszClassName;
+}
 
 /// <summary>Callback for SetWindowSubclass (comctl32 window subclassing).</summary>
 internal delegate IntPtr SubclassProc(
@@ -74,6 +105,29 @@ public static class User32
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
         int X, int Y, int cx, int cy, uint uFlags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool GetCursorPos(out POINT lpPoint);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern ushort RegisterClass(WNDCLASS lpWndClass);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern IntPtr CreateWindowEx(uint dwExStyle, string lpClassName,
+        string lpWindowName, uint dwStyle, int x, int y, int nWidth, int nHeight,
+        IntPtr hWndParent, IntPtr hMenu, IntPtr hInstance, IntPtr lpParam);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr DefWindowProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("gdi32.dll", SetLastError = true)]
+    public static extern IntPtr CreateRoundRectRgn(int x1, int y1, int x2, int y2, int cx, int cy);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool DestroyWindow(IntPtr hWnd);
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool RegisterShellHookWindow(IntPtr hwnd);
@@ -114,6 +168,9 @@ internal static class Kernel32
 
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern bool CloseHandle(IntPtr hObject);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern IntPtr GetModuleHandle(string? lpModuleName);
 }
 
 internal static class Comctl32

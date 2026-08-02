@@ -15,19 +15,22 @@ namespace CedroModernDock.Views;
 
 /// <summary>
 /// Popup listing a program item's open windows as live DWM thumbnails.
-/// The window is fully transparent; thumbnails render beneath the content,
-/// so only the row borders/titles are drawn by Avalonia.
+/// Each thumbnail lives in its own native top-level window (ThumbnailWindow):
+/// DWM thumbnails composite above the host window's content and ignore window
+/// regions, so rounded corners are done via DWMWA corner preference on those
+/// native windows. The Avalonia window draws only the rows/titles.
 /// </summary>
 public partial class WindowPreviewPopup : Window
 {
     private const int ThumbWidth = 144;
     private const int ThumbHeight = 81;
-    private const int MaxRounding = 15;
+    // DWM clips live thumbnails at the system's fixed corner radius (~8px), so
+    // the Avalonia rows must use the same radius for a consistent look.
+    private const int MaxRounding = 8;
     // 75% of the popup width (144 thumbnail + 2*6 row padding + 2*4 panel margin).
     private const int TitleMaxWidth = 123;
 
-    private readonly List<(IntPtr Thumb, Border Area)> _rows = new();
-    private readonly List<IntPtr> _sources = new();
+    private readonly List<(ThumbnailWindow? Thumb, Border Area)> _rows = new();
     private IReadOnlyList<IntPtr> _sourceHandles = Array.Empty<IntPtr>();
     private string _appLabel = "";
     private string _colorRgb = "0, 0, 0, ";
@@ -93,7 +96,6 @@ public partial class WindowPreviewPopup : Window
     {
         ClearRows();
         _rows.Clear();
-        _sources.Clear();
 
         var parts = _colorRgb.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
         byte r = parts.Length > 0 && byte.TryParse(parts[0], out var rv) ? rv : (byte)0;
@@ -108,10 +110,9 @@ public partial class WindowPreviewPopup : Window
 
         foreach (var window in windows)
         {
+            // Placeholder sizing the row; the real thumbnail is a native
+            // ThumbnailWindow positioned over this area at screen coordinates.
             var thumbArea = new Border { Width = ThumbWidth, Height = ThumbHeight, Background = Brushes.Transparent };
-            var thumbHost = new Grid { Width = ThumbWidth, Height = ThumbHeight };
-            thumbHost.Children.Add(thumbArea);
-            AddThumbnailCornerMasks(thumbHost, rowBrush, rounding);
             var title = new TextBlock
             {
                 Text = WindowTitleFormatter.Format(window.Title, _appLabel),
@@ -125,7 +126,7 @@ public partial class WindowPreviewPopup : Window
                 Margin = new Thickness(0, 4, 0, 4)
             };
             var content = new StackPanel { Orientation = Orientation.Vertical };
-            content.Children.Add(thumbHost);
+            content.Children.Add(thumbArea);
             content.Children.Add(title);
 
             var row = new Border
@@ -138,54 +139,15 @@ public partial class WindowPreviewPopup : Window
             };
             RowsPanel.Children.Add(row);
             row.PointerPressed += (_, _) => ThumbnailClicked?.Invoke(window.Handle);
-            _rows.Add((IntPtr.Zero, thumbArea));
-            _sources.Add(IntPtr.Zero);
+            _rows.Add((null, thumbArea));
         }
     }
 
     private void ClearRows()
     {
         foreach (var (thumb, _) in _rows)
-            DwmThumbnailInterop.Unregister(thumb);
+            thumb?.Dispose();
         RowsPanel.Children.Clear();
-    }
-
-    /// <summary>
-    /// DWM thumbnails are always rectangular, so rounded corners are faked by
-    /// over-painting the four corners with the row background (same color and
-    /// transparency as the dock).
-    /// </summary>
-    private static void AddThumbnailCornerMasks(Grid host, IBrush brush, double radius)
-    {
-        if (radius <= 0) return;
-        host.Children.Add(new Border
-        {
-            Width = radius, Height = radius, Background = brush,
-            CornerRadius = new CornerRadius(radius, 0, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top,
-            IsHitTestVisible = false
-        });
-        host.Children.Add(new Border
-        {
-            Width = radius, Height = radius, Background = brush,
-            CornerRadius = new CornerRadius(0, radius, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
-            IsHitTestVisible = false
-        });
-        host.Children.Add(new Border
-        {
-            Width = radius, Height = radius, Background = brush,
-            CornerRadius = new CornerRadius(0, 0, radius, 0),
-            HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom,
-            IsHitTestVisible = false
-        });
-        host.Children.Add(new Border
-        {
-            Width = radius, Height = radius, Background = brush,
-            CornerRadius = new CornerRadius(0, 0, 0, radius),
-            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom,
-            IsHitTestVisible = false
-        });
     }
 
     private void PositionNear(Button anchor)
@@ -231,6 +193,11 @@ public partial class WindowPreviewPopup : Window
         Position = new PixelPoint(popupX, popupY);
     }
 
+    /// <summary>
+    /// Single registration path: layout must be final before creating the native
+    /// thumbnail windows (they are positioned at the row areas' screen coords),
+    /// so defer to Loaded priority. Source HWNDs were stored by ShowFor.
+    /// </summary>
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
@@ -246,19 +213,27 @@ public partial class WindowPreviewPopup : Window
             User32.SetWindowLongPtr(_hwnd, Win32Constants.GWL_EXSTYLE, new IntPtr(exStyle));
         }
 
-        // Single registration path: layout must be final before registering
-        // thumbnails, so defer to Loaded priority. Source HWNDs were stored by
-        // ShowFor (_sourceHandles).
         Dispatcher.UIThread.Post(RegisterThumbnails, DispatcherPriority.Loaded);
     }
 
+    /// <summary>
+    /// Creates one native ThumbnailWindow per row, positioned over the row's
+    /// thumbnail area at physical screen coordinates. Rounded corners are the
+    /// DWM corner preference applied by ThumbnailWindow itself.
+    /// </summary>
     private void RegisterThumbnails()
     {
         if (_hwnd == IntPtr.Zero) return;
         double scale = RenderScaling;
+        var parts = _colorRgb.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        byte r = parts.Length > 0 && byte.TryParse(parts[0], out var rv) ? rv : (byte)0;
+        byte g = parts.Length > 1 && byte.TryParse(parts[1], out var gv) ? gv : (byte)0;
+        byte b = parts.Length > 2 && byte.TryParse(parts[2], out var bv) ? bv : (byte)0;
+        uint borderColor = DwmThumbnailInterop.ToColorRef(r, g, b);
 
         for (int i = 0; i < _rows.Count && i < _sourceHandles.Count; i++)
         {
+            if (_rows[i].Thumb != null) continue;
             var area = _rows[i].Area;
             var matrix = area.TransformToVisual(this);
             if (matrix == null) continue;
@@ -267,31 +242,43 @@ public partial class WindowPreviewPopup : Window
 
             IntPtr sourceHwnd = _sourceHandles[i];
             if (sourceHwnd == IntPtr.Zero) continue;
-            if (!DwmThumbnailInterop.Register(_hwnd, sourceHwnd, out IntPtr thumb)) continue;
-            _rows[i] = (thumb, area);
-            _sources[i] = sourceHwnd;
 
-            if (!DwmThumbnailInterop.QuerySourceSize(thumb, out var srcSize) || srcSize.Cx <= 0 || srcSize.Cy <= 0)
-                continue;
+            // Physical pixels on screen: window-relative bounds + window position.
+            int px = (int)(Position.X + bounds.X * scale);
+            int py = (int)(Position.Y + bounds.Y * scale);
+            int pw = (int)Math.Ceiling(bounds.Width * scale);
+            int ph = (int)Math.Ceiling(bounds.Height * scale);
 
-            // Fit preserving aspect inside the area (letterbox), physical pixels.
-            double areaW = bounds.Width * scale;
-            double areaH = bounds.Height * scale;
-            double ar = (double)srcSize.Cx / srcSize.Cy;
-            double fitW = areaW, fitH = areaW / ar;
-            if (fitH > areaH) { fitH = areaH; fitW = areaH * ar; }
-            double ox = bounds.X * scale + (areaW - fitW) / 2;
-            double oy = bounds.Y * scale + (areaH - fitH) / 2;
-
-            var rect = new DwmThumbnailInterop.RECT
+            ThumbnailWindow thumb;
+            try
             {
-                Left = (int)ox,
-                Top = (int)oy,
-                Right = (int)Math.Ceiling(ox + fitW),
-                Bottom = (int)Math.Ceiling(oy + fitH)
-            };
-            DwmThumbnailInterop.Update(thumb, rect);
+                thumb = new ThumbnailWindow(sourceHwnd, px, py, pw, ph, borderColor);
+            }
+            catch (Exception)
+            {
+                continue;
+            }
+            _rows[i] = (thumb, area);
         }
+    }
+
+    /// <summary>
+    /// True when the physical screen point is over the popup or over any native
+    /// thumbnail window (used to keep the popup open while hovering thumbnails,
+    /// which are separate top-level windows).
+    /// </summary>
+    public bool IsPointOverPopup(int x, int y)
+    {
+        int w = (int)(Width * RenderScaling);
+        int h = (int)(Height * RenderScaling);
+        if (x >= Position.X && x < Position.X + w && y >= Position.Y && y < Position.Y + h)
+            return true;
+        foreach (var (thumb, _) in _rows)
+        {
+            if (thumb != null && thumb.ContainsPoint(x, y))
+                return true;
+        }
+        return false;
     }
 
     public void HidePopup()

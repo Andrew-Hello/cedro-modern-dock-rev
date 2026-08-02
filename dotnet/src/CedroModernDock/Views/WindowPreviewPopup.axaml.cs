@@ -20,8 +20,11 @@ namespace CedroModernDock.Views;
 /// </summary>
 public partial class WindowPreviewPopup : Window
 {
-    private const int ThumbWidth = 160;
-    private const int ThumbHeight = 90;
+    private const int ThumbWidth = 144;
+    private const int ThumbHeight = 81;
+    private const int MaxRounding = 15;
+    // 75% of the popup width (144 thumbnail + 2*6 row padding + 2*4 panel margin).
+    private const int TitleMaxWidth = 123;
 
     private readonly List<(IntPtr Thumb, Border Area)> _rows = new();
     private readonly List<IntPtr> _sources = new();
@@ -98,31 +101,36 @@ public partial class WindowPreviewPopup : Window
         byte b = parts.Length > 2 && byte.TryParse(parts[2], out var bv) ? bv : (byte)0;
         byte alpha = (byte)(_transparency * 255);
         var rowBrush = new SolidColorBrush(Color.FromArgb(alpha, r, g, b));
-        var textBrush = new SolidColorBrush(
-            WindowTitleFormatter.IsDarkBackground(_colorRgb) ? Colors.White : Colors.Black);
+        int rounding = Math.Min(_rounding, MaxRounding);
+        var textBrush = WindowTitleFormatter.IsDarkBackground(_colorRgb)
+            ? (IBrush)new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC))
+            : new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44));
 
         foreach (var window in windows)
         {
             var thumbArea = new Border { Width = ThumbWidth, Height = ThumbHeight, Background = Brushes.Transparent };
+            var thumbHost = new Grid { Width = ThumbWidth, Height = ThumbHeight };
+            thumbHost.Children.Add(thumbArea);
+            AddThumbnailCornerMasks(thumbHost, rowBrush, rounding);
             var title = new TextBlock
             {
                 Text = WindowTitleFormatter.Format(window.Title, _appLabel),
                 Foreground = textBrush,
                 FontSize = 12,
-                // Cap the popup width at the thumbnail size: long titles must
+                // Cap the title at 75% of the popup width: long titles must
                 // never widen the popup beyond the previews it contains.
-                MaxWidth = ThumbWidth,
+                MaxWidth = TitleMaxWidth,
                 TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis,
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                 Margin = new Thickness(0, 4, 0, 4)
             };
             var content = new StackPanel { Orientation = Orientation.Vertical };
-            content.Children.Add(thumbArea);
+            content.Children.Add(thumbHost);
             content.Children.Add(title);
 
             var row = new Border
             {
-                CornerRadius = new CornerRadius(_rounding),
+                CornerRadius = new CornerRadius(rounding),
                 // Same background and transparency as the dock itself.
                 Background = rowBrush,
                 Padding = new Thickness(6, 6, 6, 0),
@@ -140,6 +148,44 @@ public partial class WindowPreviewPopup : Window
         foreach (var (thumb, _) in _rows)
             DwmThumbnailInterop.Unregister(thumb);
         RowsPanel.Children.Clear();
+    }
+
+    /// <summary>
+    /// DWM thumbnails are always rectangular, so rounded corners are faked by
+    /// over-painting the four corners with the row background (same color and
+    /// transparency as the dock).
+    /// </summary>
+    private static void AddThumbnailCornerMasks(Grid host, IBrush brush, double radius)
+    {
+        if (radius <= 0) return;
+        host.Children.Add(new Border
+        {
+            Width = radius, Height = radius, Background = brush,
+            CornerRadius = new CornerRadius(radius, 0, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top,
+            IsHitTestVisible = false
+        });
+        host.Children.Add(new Border
+        {
+            Width = radius, Height = radius, Background = brush,
+            CornerRadius = new CornerRadius(0, radius, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top,
+            IsHitTestVisible = false
+        });
+        host.Children.Add(new Border
+        {
+            Width = radius, Height = radius, Background = brush,
+            CornerRadius = new CornerRadius(0, 0, radius, 0),
+            HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom,
+            IsHitTestVisible = false
+        });
+        host.Children.Add(new Border
+        {
+            Width = radius, Height = radius, Background = brush,
+            CornerRadius = new CornerRadius(0, 0, 0, radius),
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom,
+            IsHitTestVisible = false
+        });
     }
 
     private void PositionNear(Button anchor)

@@ -203,12 +203,16 @@ public partial class WindowPreviewPopup : Window
 
         // Gap (DIPs) between the item button and the dock window's own border:
         // the popup must sit outside the dock, not just below the button.
-        double gapBelow = 0, gapAbove = 0;
+        double gapBelow = 0, gapAbove = 0, gapLeft = 0, gapRight = 0;
         if (TopLevel.GetTopLevel(anchor) is { } root &&
             anchor.TransformToVisual(root) is { } transform)
         {
-            gapBelow = root.Bounds.Height - new Point(0, anchor.Bounds.Height).Transform(transform).Y;
-            gapAbove = new Point(0, 0).Transform(transform).Y;
+            var topLeft = new Point(0, 0).Transform(transform);
+            var bottomRight = new Point(anchor.Bounds.Width, anchor.Bounds.Height).Transform(transform);
+            gapBelow = root.Bounds.Height - bottomRight.Y;
+            gapAbove = topLeft.Y;
+            gapLeft = topLeft.X;
+            gapRight = root.Bounds.Width - bottomRight.X;
         }
 
         // Place below the dock by default; above when the dock is in the lower half.
@@ -220,13 +224,16 @@ public partial class WindowPreviewPopup : Window
             var work = screen.WorkingArea;
             if (_verticalDock)
             {
-                // Vertical dock: popup to the left/right of the item, vertically
-                // centered on it. Dock on the left edge -> popup on the right;
-                // dock on the right edge -> popup on the left.
+                // Vertical dock: popup to the left/right of the dock, flush
+                // against the bar's outer edge with the same 4px gap horizontal
+                // mode uses below the dock. Dock on the left edge -> popup on
+                // the right; dock on the right edge -> popup on the left.
                 int popupRightX = (int)(anchor.PointToScreen(
-                    new Point(anchor.Bounds.Width, anchor.Bounds.Height / 2)).X + 4);
+                    new Point(anchor.Bounds.Width, anchor.Bounds.Height / 2)).X
+                    + gapRight * scale) + 4;
                 int popupLeftX = (int)(anchor.PointToScreen(
-                    new Point(0, anchor.Bounds.Height / 2)).X) - w - 4;
+                    new Point(0, anchor.Bounds.Height / 2)).X
+                    - gapLeft * scale) - w - 4;
 
                 bool placeRight = _horizontalAnchor != DockHorizontalAnchor.RIGHT;
                 int px = placeRight ? popupRightX : popupLeftX;

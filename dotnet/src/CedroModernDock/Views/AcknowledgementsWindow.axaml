@@ -1,7 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:CedroModernDock.ViewModels"
         x:Class="CedroModernDock.Views.AcknowledgementsWindow"
-        Title="Acknowledgements"
+        x:DataType="vm:AcknowledgementsViewModel"
+        Title="{Binding Title}"
         Width="420" Height="360"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
@@ -9,10 +11,10 @@
 
     <ScrollViewer Padding="24">
         <StackPanel Orientation="Vertical" Spacing="16">
-            <TextBlock Text="Acknowledgements" FontSize="20" FontWeight="Bold" Foreground="White"/>
-            <TextBlock Text="Libraries and frameworks used by Cedro Modern Dock."
+            <TextBlock Text="{Binding Title}" FontSize="20" FontWeight="Bold" Foreground="White"/>
+            <TextBlock Text="{Binding Subtitle}"
                        FontSize="13" Foreground="#AAAAAA" TextWrapping="Wrap"/>
-            <TextBlock Text="Libraries &amp; Frameworks" FontSize="14" FontWeight="SemiBold"
+            <TextBlock Text="{Binding LibrariesTitle}" FontSize="14" FontWeight="SemiBold"
                        Foreground="#CCCCCC" Margin="0,8,0,0"/>
             <StackPanel Orientation="Vertical" Spacing="8" Margin="0,4,0,0">
                 <TextBlock Text="• Avalonia UI 11.3 — cross-platform .NET UI framework" Foreground="#CCCCCC" FontSize="13"/>

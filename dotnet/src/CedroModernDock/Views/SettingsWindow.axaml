@@ -175,7 +175,7 @@
                                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
                                     <Border Width="48" Height="32" CornerRadius="6" BorderBrush="#666" BorderThickness="1"
                                             Background="{Binding TintColorBrush}"/>
-                                    <Button Content="Custom..." Click="OnCustomTintColor" Background="#007ACC" Foreground="White"
+                                    <Button Content="{Binding CustomColorText}" Click="OnCustomTintColor" Background="#007ACC" Foreground="White"
                                             BorderBrush="Transparent" Padding="14,6" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </StackPanel>
@@ -224,8 +224,8 @@
                             <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
                                 <Border Width="48" Height="32" CornerRadius="6" BorderBrush="#666" BorderThickness="1"
                                         Background="{Binding DockColorBrush}"/>
-                                <Button Content="Custom..." Click="OnCustomColor" Background="#007ACC" Foreground="White"
-                                        BorderBrush="Transparent" Padding="14,6" VerticalAlignment="Center"/>
+                                    <Button Content="{Binding CustomColorText}" Click="OnCustomColor" Background="#007ACC" Foreground="White"
+                                            BorderBrush="Transparent" Padding="14,6" VerticalAlignment="Center"/>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
@@ -245,9 +245,23 @@
                             <TextBlock Text="{Binding AlignmentTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,20,0,16"/>
                             <StackPanel Orientation="Horizontal" Spacing="12">
                                 <TextBlock Text="{Binding VerticalText}" VerticalAlignment="Center" Foreground="#CCC"/>
-                                <ComboBox ItemsSource="{Binding VerticalAnchors}" SelectedItem="{Binding VerticalAnchor}" Background="#2D2D2D" Foreground="White" MinWidth="100"/>
+                                <ComboBox ItemsSource="{Binding VerticalAnchorOptions}" SelectedItem="{Binding SelectedVerticalOption}"
+                                          Background="#2D2D2D" Foreground="White" MinWidth="100">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:AnchorOption">
+                                            <TextBlock Text="{Binding Label}" Foreground="White"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
                                 <TextBlock Text="{Binding HorizontalText}" VerticalAlignment="Center" Foreground="#CCC"/>
-                                <ComboBox ItemsSource="{Binding HorizontalAnchors}" SelectedItem="{Binding HorizontalAnchor}" Background="#2D2D2D" Foreground="White" MinWidth="100"/>
+                                <ComboBox ItemsSource="{Binding HorizontalAnchorOptions}" SelectedItem="{Binding SelectedHorizontalOption}"
+                                          Background="#2D2D2D" Foreground="White" MinWidth="100">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:HorizontalAnchorOption">
+                                            <TextBlock Text="{Binding Label}" Foreground="White"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
                             </StackPanel>
                             <TextBlock Text="{Binding ScreenSpacingTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,40,0,0"/>
                             <StackPanel Orientation="Vertical" Spacing="6" Margin="0,0,0,80">
@@ -270,10 +284,10 @@
                 <TabItem Header="{Binding TabGeneral}">
                     <StackPanel Orientation="Vertical" Spacing="8" Margin="16,12">
                         <TextBlock Text="{Binding OpenSourceText}" Foreground="#CCCCCC" FontWeight="SemiBold" Margin="0,8,0,0"/>
-                        <CheckBox Content="Start with Windows" IsChecked="{Binding IsAutoStartEnabled}" Foreground="#CCCCCC" Margin="0,8,0,0"/>
-                        <CheckBox Content="Show running programs that aren't pinned on the Dock"
+                        <CheckBox Content="{Binding StartWithWindowsText}" IsChecked="{Binding IsAutoStartEnabled}" Foreground="#CCCCCC" Margin="0,8,0,0"/>
+                        <CheckBox Content="{Binding ShowUnpinnedRunningAppsText}"
                                   IsChecked="{Binding ShowUnpinnedRunningApps}" Foreground="#CCCCCC" Margin="0,8,0,0"/>
-                        <CheckBox Content="Arrange Dock on the vertical"
+                        <CheckBox Content="{Binding ArrangeVerticalText}"
                                   IsChecked="{Binding IsVerticalDock}" Foreground="#CCCCCC" Margin="0,8,0,0"/>
                         <Button Content="{Binding AcknowledgementsText}" Click="OnAcknowledgements"
                                 Background="#007ACC" Foreground="White" BorderBrush="Transparent"

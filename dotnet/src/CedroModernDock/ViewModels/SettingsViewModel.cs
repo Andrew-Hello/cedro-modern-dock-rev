@@ -11,6 +11,12 @@ namespace CedroModernDock.ViewModels;
 /// <summary>One row in the Settings dock-items list: display label + icon.</summary>
 public sealed record DockItemListEntry(string Label, Bitmap? Icon);
 
+/// <summary>Alignment combo-box entry: localized label + enum value.</summary>
+public sealed record AnchorOption(string Label, DockVerticalAnchor Value);
+
+/// <summary>Alignment combo-box entry: localized label + enum value.</summary>
+public sealed record HorizontalAnchorOption(string Label, DockHorizontalAnchor Value);
+
 /// <summary>ViewModel for the Settings window. Port of SettingsController.</summary>
 public partial class SettingsViewModel : ViewModelBase
 {
@@ -44,8 +50,20 @@ public partial class SettingsViewModel : ViewModelBase
     public ObservableCollection<DockItemListEntry> ItemEntries { get; } = new();
     public SupportedLanguage[] Languages => Enum.GetValues<SupportedLanguage>();
     public string[] LanguageNames => Languages.Select(l => l.NativeDisplayName()).ToArray();
-    public DockVerticalAnchor[] VerticalAnchors => Enum.GetValues<DockVerticalAnchor>();
-    public DockHorizontalAnchor[] HorizontalAnchors => Enum.GetValues<DockHorizontalAnchor>();
+
+    public IReadOnlyList<AnchorOption> VerticalAnchorOptions => new[]
+    {
+        new AnchorOption(T("settings.positioning.choice.top"), DockVerticalAnchor.TOP),
+        new AnchorOption(T("settings.positioning.choice.middle"), DockVerticalAnchor.MIDDLE),
+        new AnchorOption(T("settings.positioning.choice.down"), DockVerticalAnchor.DOWN)
+    };
+
+    public IReadOnlyList<HorizontalAnchorOption> HorizontalAnchorOptions => new[]
+    {
+        new HorizontalAnchorOption(T("settings.positioning.choice.left"), DockHorizontalAnchor.LEFT),
+        new HorizontalAnchorOption(T("settings.positioning.choice.middle"), DockHorizontalAnchor.MIDDLE),
+        new HorizontalAnchorOption(T("settings.positioning.choice.right"), DockHorizontalAnchor.RIGHT)
+    };
 
     public int SelectedLanguageIndex
     {
@@ -96,6 +114,28 @@ public partial class SettingsViewModel : ViewModelBase
     public bool IsStaticMode { get => _isStaticMode; set => SetProperty(ref _isStaticMode, value); }
     public DockVerticalAnchor VerticalAnchor { get => _verticalAnchor; set => SetProperty(ref _verticalAnchor, value); }
     public DockHorizontalAnchor HorizontalAnchor { get => _horizontalAnchor; set => SetProperty(ref _horizontalAnchor, value); }
+
+    /// <summary>Selected alignment combo entry (localized label + value).</summary>
+    public AnchorOption? SelectedVerticalOption
+    {
+        get => VerticalAnchorOptions.FirstOrDefault(o => o.Value == VerticalAnchor);
+        set
+        {
+            if (value != null && value.Value != VerticalAnchor)
+                VerticalAnchor = value.Value;
+        }
+    }
+
+    /// <summary>Selected alignment combo entry (localized label + value).</summary>
+    public HorizontalAnchorOption? SelectedHorizontalOption
+    {
+        get => HorizontalAnchorOptions.FirstOrDefault(o => o.Value == HorizontalAnchor);
+        set
+        {
+            if (value != null && value.Value != HorizontalAnchor)
+                HorizontalAnchor = value.Value;
+        }
+    }
     public int TopSpacing { get => _topSpacing; set => SetProperty(ref _topSpacing, value); }
     public int LeftSpacing { get => _leftSpacing; set => SetProperty(ref _leftSpacing, value); }
     public int RightSpacing { get => _rightSpacing; set => SetProperty(ref _rightSpacing, value); }
@@ -168,6 +208,10 @@ public partial class SettingsViewModel : ViewModelBase
     public string ContactText => T("settings.general.contact");
     public string OpenSourceText => T("settings.general.openSource");
     public string AcknowledgementsText => T("settings.general.acknowledgements");
+    public string StartWithWindowsText => T("settings.general.startWithWindows");
+    public string ShowUnpinnedRunningAppsText => T("settings.general.showUnpinnedRunningApps");
+    public string ArrangeVerticalText => T("settings.general.arrangeVertical");
+    public string CustomColorText => T("settings.customColor");
 
     private bool _isAutoStartEnabled;
     public bool IsAutoStartEnabled
@@ -428,6 +472,10 @@ public partial class SettingsViewModel : ViewModelBase
             .Where(p => p.PropertyType == typeof(string) && p.GetMethod != null && p.GetIndexParameters().Length == 0))
             OnPropertyChanged(prop.Name);
         OnPropertyChanged(nameof(Languages));
+        OnPropertyChanged(nameof(VerticalAnchorOptions));
+        OnPropertyChanged(nameof(HorizontalAnchorOptions));
+        OnPropertyChanged(nameof(SelectedVerticalOption));
+        OnPropertyChanged(nameof(SelectedHorizontalOption));
     }
 
     public void Shutdown()

@@ -65,7 +65,11 @@ public partial class SettingsWindow : Window
     private void OnRemove(object? sender, RoutedEventArgs e) => Vm?.RemoveSelected();
     private void OnMoveUp(object? sender, RoutedEventArgs e) => Vm?.MoveItemUp();
     private void OnMoveDown(object? sender, RoutedEventArgs e) => Vm?.MoveItemDown();
-    private void OnAcknowledgements(object? sender, RoutedEventArgs e) => AcknowledgementsWindow.Open(this);
+    private void OnAcknowledgements(object? sender, RoutedEventArgs e)
+    {
+        if (_appServices != null)
+            AcknowledgementsWindow.Open(this, _appServices.LocalizationService);
+    }
 
     private void OnPresetColorPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
     {

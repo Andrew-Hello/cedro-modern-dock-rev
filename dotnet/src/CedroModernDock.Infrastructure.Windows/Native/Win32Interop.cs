@@ -45,6 +45,14 @@ public static class Win32Constants
     public const int WM_SIZE = 0x0005;
     public const int SC_MINIMIZE = 0xF020;
     public const int SIZE_MINIMIZED = 0;
+    public const int WM_GETICON = 0x007F;
+
+    // WM_GETICON icon size selectors
+    public const IntPtr ICON_BIG = 1;
+    public const IntPtr ICON_SMALL2 = 2;
+
+    // GetClassLongPtr indices
+    public const int GCLP_HICON = -14;
 
     // GetWindow commands
     public const int GW_OWNER = 4;
@@ -101,6 +109,9 @@ public static class User32
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool EnumChildWindows(IntPtr hWndParent, EnumWindowsProc enumProc, IntPtr lParam);
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     public static extern IntPtr FindWindow(string? lpClassName, string? lpWindowName);
 
@@ -139,6 +150,9 @@ public static class User32
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
         int X, int Y, int cx, int cy, uint uFlags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool GetCursorPos(out POINT lpPoint);
@@ -182,6 +196,10 @@ public static class User32
         => IntPtr.Size == 8 ? SetWindowLongPtr64(hWnd, nIndex, dwNewLong)
                             : new IntPtr(SetWindowLong32(hWnd, nIndex, dwNewLong.ToInt32()));
 
+    public static IntPtr GetClassLongPtr(IntPtr hWnd, int nIndex)
+        => IntPtr.Size == 8 ? GetClassLongPtr64(hWnd, nIndex)
+                            : new IntPtr(GetClassLong32(hWnd, nIndex));
+
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtr", SetLastError = true)]
     private static extern IntPtr GetWindowLongPtr64(IntPtr hWnd, int nIndex);
 
@@ -193,6 +211,12 @@ public static class User32
 
     [DllImport("user32.dll", EntryPoint = "SetWindowLong", SetLastError = true)]
     private static extern int SetWindowLong32(IntPtr hWnd, int nIndex, int dwNewLong);
+
+    [DllImport("user32.dll", EntryPoint = "GetClassLongPtr", SetLastError = true)]
+    private static extern IntPtr GetClassLongPtr64(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll", EntryPoint = "GetClassLong", SetLastError = true)]
+    private static extern int GetClassLong32(IntPtr hWnd, int nIndex);
 }
 
 internal static class Kernel32

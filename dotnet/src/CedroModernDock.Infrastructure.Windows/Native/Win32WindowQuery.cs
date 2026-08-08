@@ -71,8 +71,40 @@ public static class Win32WindowQuery
         if (string.IsNullOrEmpty(executablePath))
             return false;
 
+        // UWP/AppX apps: the visible window belongs to ApplicationFrameHost,
+        // but the actual app runs in a child CoreWindow. Use the child's
+        // executable so the dock groups, labels and icons it as the real app.
+        if (string.Equals(System.IO.Path.GetFileName(executablePath),
+                "ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase))
+        {
+            string? appPath = GetChildProcessExePath(hWnd, executablePath);
+            if (!string.IsNullOrEmpty(appPath))
+                executablePath = appPath;
+        }
+
         info = new RunningWindowInfo(hWnd, title, executablePath);
         return true;
+    }
+
+    /// <summary>
+    /// Finds the first child window running a different executable than the
+    /// frame host — for UWP apps that is the CoreWindow hosting the app UI.
+    /// </summary>
+    private static string? GetChildProcessExePath(IntPtr hWnd, string framePath)
+    {
+        string? result = null;
+        User32.EnumChildWindows(hWnd, (child, _) =>
+        {
+            string? path = GetProcessPath(child);
+            if (!string.IsNullOrEmpty(path) &&
+                !string.Equals(path, framePath, StringComparison.OrdinalIgnoreCase))
+            {
+                result = path;
+                return false;
+            }
+            return true;
+        }, IntPtr.Zero);
+        return result;
     }
 
     private static string? GetProcessPath(IntPtr hWnd)

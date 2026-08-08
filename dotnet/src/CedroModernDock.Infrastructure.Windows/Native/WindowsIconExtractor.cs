@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Security.Cryptography;
+using System.Xml;
 
 /// <summary>
 /// Direct port of WindowsIconHandler.java. Extracts high-resolution (256x256)
@@ -64,6 +65,154 @@ public static class WindowsIconExtractor
             System.Diagnostics.Debug.WriteLine($"ExtractAndCacheFolderIcon error: {e.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Fallback for modern/UWP apps (e.g. Windows Settings) whose EXE ships no
+    /// classic icon resource: grabs the running window's own icon (WM_GETICON,
+    /// falling back to the class icon) and caches it under the exe's icon path.
+    /// The HICON is shared/owned by the window, so it is never destroyed here.
+    /// </summary>
+    public static string? ExtractAndCacheWindowIcon(string exePath, IntPtr hwnd)
+    {
+        try
+        {
+            if (hwnd == IntPtr.Zero) return null;
+            string? cachedIconPath = GetCachedIconPath(exePath);
+            if (cachedIconPath == null) return null;
+            if (File.Exists(cachedIconPath)) return cachedIconPath;
+
+            IntPtr hIcon = User32.SendMessage(hwnd, Win32Constants.WM_GETICON, Win32Constants.ICON_BIG, IntPtr.Zero);
+            if (hIcon == IntPtr.Zero)
+                hIcon = User32.GetClassLongPtr(hwnd, Win32Constants.GCLP_HICON);
+            if (hIcon == IntPtr.Zero)
+                hIcon = User32.SendMessage(hwnd, Win32Constants.WM_GETICON, Win32Constants.ICON_SMALL2, IntPtr.Zero);
+            if (hIcon == IntPtr.Zero)
+                return null;
+
+            using var icon = Icon.FromHandle(hIcon);
+            using var bitmap = icon.ToBitmap();
+            bitmap.Save(cachedIconPath, ImageFormat.Png);
+            return File.Exists(cachedIconPath) && new FileInfo(cachedIconPath).Length > 0
+                ? cachedIconPath : null;
+        }
+        catch (Exception e)
+        {
+            System.Diagnostics.Debug.WriteLine($"ExtractAndCacheWindowIcon error: {e.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Fallback for UWP/AppX apps (Settings, Snipping Tool, ...): their icons
+    /// live in the package manifest, not in the EXE. Walks up from the exe to
+    /// the package root (where AppxManifest.xml lives), reads the
+    /// Square44x44Logo asset (with scale variants) and copies it into the
+    /// icon cache under the exe's key.
+    /// </summary>
+    public static string? ExtractAndCacheAppxIcon(string exePath)
+    {
+        try
+        {
+            string? cachedIconPath = GetCachedIconPath(exePath);
+            if (cachedIconPath == null) return null;
+            if (File.Exists(cachedIconPath)) return cachedIconPath;
+
+            string? assetPath = ResolveAppxLogoAsset(exePath);
+            if (assetPath == null) return null;
+
+            File.Copy(assetPath, cachedIconPath, overwrite: true);
+            return File.Exists(cachedIconPath) && new FileInfo(cachedIconPath).Length > 0
+                ? cachedIconPath : null;
+        }
+        catch (Exception e)
+        {
+            System.Diagnostics.Debug.WriteLine($"ExtractAndCacheAppxIcon error: {e.Message}");
+            return null;
+        }
+    }
+
+    private static string? ResolveAppxLogoAsset(string exePath)
+    {
+        // Find the package root: the directory containing AppxManifest.xml.
+        var dir = new DirectoryInfo(Path.GetDirectoryName(exePath) ?? "");
+        string? root = null;
+        for (int i = 0; i < 5 && dir != null; i++)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "AppxManifest.xml")))
+            {
+                root = dir.FullName;
+                break;
+            }
+            dir = dir.Parent;
+        }
+        if (root == null) return null;
+
+        var doc = new XmlDocument();
+        doc.Load(Path.Combine(root, "AppxManifest.xml"));
+
+        // VisualElements element (any namespace) and its logo attributes.
+        XmlElement? visualElements = FindElementByLocalName(doc.DocumentElement, "VisualElements");
+        string? relPath = null;
+        if (visualElements != null)
+        {
+            foreach (string attr in new[] { "Square44x44Logo", "Square150x150Logo", "Square71x71Logo" })
+            {
+                if (!string.IsNullOrEmpty(visualElements.GetAttribute(attr)))
+                {
+                    relPath = visualElements.GetAttribute(attr);
+                    break;
+                }
+            }
+        }
+        if (relPath == null)
+        {
+            XmlElement? logo = FindElementByLocalName(doc.DocumentElement, "Logo");
+            relPath = logo?.InnerText.Trim();
+        }
+        if (string.IsNullOrEmpty(relPath)) return null;
+
+        string relative = relPath.Replace('/', Path.DirectorySeparatorChar);
+        string basePath = Path.Combine(root, relative);
+        foreach (string candidate in EnumerateAssetCandidates(basePath))
+        {
+            if (File.Exists(candidate)) return candidate;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Enumerates the asset file candidates in priority order: the base file
+    /// first, then the scale variants (Windows convention: "logo.scale-200.png"
+    /// and "logo_scale-200.png"), largest scale first.
+    /// </summary>
+    private static IEnumerable<string> EnumerateAssetCandidates(string basePath)
+    {
+        yield return basePath;
+        string dir = Path.GetDirectoryName(basePath) ?? "";
+        string fileName = Path.GetFileName(basePath);
+        string stem = Path.GetFileNameWithoutExtension(fileName);
+        string ext = Path.GetExtension(fileName);
+        foreach (int scale in new[] { 400, 300, 240, 200, 150, 125, 100 })
+        {
+            yield return Path.Combine(dir, $"{stem}.scale-{scale}{ext}");
+            yield return Path.Combine(dir, $"{stem}_scale-{scale}{ext}");
+        }
+    }
+
+    private static XmlElement? FindElementByLocalName(XmlElement? parent, string localName)
+    {
+        if (parent == null) return null;
+        foreach (XmlNode node in parent.ChildNodes)
+        {
+            if (node is XmlElement element)
+            {
+                if (element.LocalName == localName) return element;
+                XmlElement? found = FindElementByLocalName(element, localName);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
     // --- private methods inserted below ---
 

@@ -9,6 +9,7 @@ using Avalonia;
 using Avalonia.Media;
 using CedroModernDock.Core.Application;
 using CedroModernDock.Core.Models;
+using CedroModernDock.Infrastructure.Windows.Native;
 
 namespace CedroModernDock.ViewModels;
 
@@ -363,7 +364,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 {
                     IconSize = _appServices.AppearanceService.GetIconsSize()
                 };
-                LoadRunningIcon(vm);
+                LoadRunningIcon(vm, win.Handle);
                 _runningAppsByPath[path] = vm;
                 RunningApps.Add(vm);
                 changed = true;
@@ -391,7 +392,7 @@ public partial class MainWindowViewModel : ViewModelBase
         return false;
     }
 
-    private void LoadRunningIcon(RunningAppViewModel vm)
+    private void LoadRunningIcon(RunningAppViewModel vm, IntPtr windowHandle)
     {
         if (_appServices == null) return;
         string exe = vm.ExecutablePath;
@@ -403,6 +404,9 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
         // Not cached yet — extract in the background and push when ready.
+        // Modern/UWP apps (Settings, etc.) carry no icon resource in the EXE
+        // and their frame window exposes none either; fall back to the running
+        // window's icon, then to the AppX package manifest logo.
         _ = Task.Run(() =>
         {
             try
@@ -410,6 +414,18 @@ public partial class MainWindowViewModel : ViewModelBase
                 _appServices.IconGateway.CacheProgramIcon(exe);
                 string? cached = _appServices.IconGateway.ResolveProgramIcon(exe);
                 var loaded = IconLoader.LoadFromFile(cached);
+                if (loaded == null && windowHandle != IntPtr.Zero)
+                {
+                    WindowsIconExtractor.ExtractAndCacheWindowIcon(exe, windowHandle);
+                    cached = _appServices.IconGateway.ResolveProgramIcon(exe);
+                    loaded = IconLoader.LoadFromFile(cached);
+                }
+                if (loaded == null)
+                {
+                    WindowsIconExtractor.ExtractAndCacheAppxIcon(exe);
+                    cached = _appServices.IconGateway.ResolveProgramIcon(exe);
+                    loaded = IconLoader.LoadFromFile(cached);
+                }
                 if (loaded != null)
                     Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {

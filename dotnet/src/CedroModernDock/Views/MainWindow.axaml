@@ -104,7 +104,7 @@
                    Stretch="Uniform"
                    VerticalAlignment="Center"
                    Margin="4,0"
-                   IsVisible="{Binding !IsVerticalDock}"
+                   IsVisible="{Binding ShowHorizontalSeparator}"
                    RenderOptions.BitmapInterpolationMode="HighQuality"/>
             <Image Source="/Assets/icons/open-softwares-separator-2.png"
                    Width="{Binding IconsSize}" Height="14"
@@ -112,7 +112,7 @@
                    VerticalAlignment="Center"
                    HorizontalAlignment="Center"
                    Margin="0,4"
-                   IsVisible="{Binding IsVerticalDock}"
+                   IsVisible="{Binding ShowVerticalSeparator}"
                    RenderOptions.BitmapInterpolationMode="HighQuality"/>
 
             <!-- Running-but-unpinned apps (taskbar-like) -->

@@ -37,7 +37,14 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool HasRunningApps
     {
         get => _hasRunningApps;
-        private set => SetProperty(ref _hasRunningApps, value);
+        private set
+        {
+            if (SetProperty(ref _hasRunningApps, value))
+            {
+                OnPropertyChanged(nameof(ShowHorizontalSeparator));
+                OnPropertyChanged(nameof(ShowVerticalSeparator));
+            }
+        }
     }
 
     private bool _isVerticalDock;
@@ -47,13 +54,23 @@ public partial class MainWindowViewModel : ViewModelBase
         set
         {
             if (SetProperty(ref _isVerticalDock, value))
+            {
                 OnPropertyChanged(nameof(DockOrientation));
+                OnPropertyChanged(nameof(ShowHorizontalSeparator));
+                OnPropertyChanged(nameof(ShowVerticalSeparator));
+            }
         }
     }
 
     /// <summary>Layout direction of the dock items (horizontal by default, vertical when enabled).</summary>
     public Avalonia.Layout.Orientation DockOrientation
         => IsVerticalDock ? Avalonia.Layout.Orientation.Vertical : Avalonia.Layout.Orientation.Horizontal;
+
+    /// <summary>Separator is only shown between pinned items and displayed unpinned running apps.</summary>
+    public bool ShowHorizontalSeparator => HasRunningApps && !IsVerticalDock;
+
+    /// <summary>Separator is only shown between pinned items and displayed unpinned running apps.</summary>
+    public bool ShowVerticalSeparator => HasRunningApps && IsVerticalDock;
 
     public int IconsSize
     {

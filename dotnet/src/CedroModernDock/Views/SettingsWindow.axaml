@@ -12,6 +12,22 @@
         Background="#1E1E1E"
         Closed="OnClosed">
 
+    <Window.Resources>
+        <!-- Accent blue for sliders and radio buttons (matches the 7th preset swatch). -->
+        <SolidColorBrush x:Key="SliderThumbBackground" Color="#00508C"/>
+        <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#00508C"/>
+        <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#00508C"/>
+        <SolidColorBrush x:Key="SliderTrackValueFill" Color="#00508C"/>
+        <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#00508C"/>
+        <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#00508C"/>
+        <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStroke" Color="#00508C"/>
+        <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFill" Color="#00508C"/>
+        <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStrokePointerOver" Color="#1E6BA6"/>
+        <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFillPointerOver" Color="#1E6BA6"/>
+        <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStrokePressed" Color="#003A63"/>
+        <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFillPressed" Color="#003A63"/>
+    </Window.Resources>
+
     <Window.Styles>
         <!-- Single-row, compact tab strip: the Fluent theme wraps headers in a
              WrapPanel by default, stacking them 2-per-line in this narrow window.

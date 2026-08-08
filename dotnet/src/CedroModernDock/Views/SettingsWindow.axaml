@@ -5,9 +5,9 @@
         x:DataType="vm:SettingsViewModel"
         Title="{Binding WindowTitle}"
         Icon="/Assets/icons/cedro/logo_256.png"
-        Width="600" Height="680"
+        Width="780" Height="544"
         CanResize="False"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         Background="#1E1E1E"
         Closed="OnClosed">
 
@@ -47,7 +47,7 @@
         </Style>
     </Window.Styles>
 
-    <ScrollViewer Padding="20">
+    <ScrollViewer Padding="20,20,20,30" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel Orientation="Vertical" Spacing="12">
             <!-- Header -->
             <TextBlock Text="{Binding PageTitle}" FontSize="22" FontWeight="Bold" Foreground="White"/>
@@ -57,36 +57,40 @@
                           MinWidth="180" Background="#2D2D2D" Foreground="White"/>
             </StackPanel>
 
-            <TabControl Background="Transparent" Padding="0">
+            <TabControl Background="Transparent" Padding="0,10,0,10" VerticalContentAlignment="Top">
                 <!-- Tab 1: Icons -->
                 <TabItem Header="{Binding TabIcons}">
-                    <StackPanel Orientation="Vertical" Spacing="10" Margin="8">
-                        <TextBlock Text="{Binding ItemsTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
-                        <TextBlock Text="{Binding ItemsHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
-                        <ListBox ItemsSource="{Binding ItemEntries}" SelectedIndex="{Binding SelectedItemIndex}"
-                                 Background="#2D2D2D" Foreground="White" BorderBrush="#444" BorderThickness="1"
-                                 MinHeight="120" MaxHeight="160">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="vm:DockItemListEntry">
-                                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="2,2">
-                                        <Image Source="{Binding Icon}" Width="24" Height="24"
-                                               Stretch="Uniform" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                        <TextBlock Text="{Binding ActionsTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,4,0,0"/>
-                        <TextBlock Text="{Binding ActionsHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
-                        <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
-                            <Button Content="{Binding AddProgramText}" Click="OnAddProgram" Margin="0,0,8,8" Background="#007ACC" Foreground="White" BorderBrush="Transparent" Padding="12,6"/>
-                            <Button Content="{Binding AddFolderText}" Click="OnAddFolder" Margin="0,0,8,8" Background="#007ACC" Foreground="White" BorderBrush="Transparent" Padding="12,6"/>
-                            <Button Content="{Binding AddModuleText}" Click="OnAddModule" Margin="0,0,8,8" Background="#007ACC" Foreground="White" BorderBrush="Transparent" Padding="12,6"/>
-                            <Button Content="{Binding RemoveText}" Click="OnRemove" IsEnabled="{Binding CanRemove}" Margin="0,0,8,8" Background="#D33" Foreground="White" BorderBrush="Transparent" Padding="12,6"/>
-                            <Button Content="{Binding MoveUpText}" Click="OnMoveUp" IsEnabled="{Binding CanMoveUp}" Margin="0,0,8,8" Background="#444" Foreground="White" BorderBrush="Transparent" Padding="12,6"/>
-                            <Button Content="{Binding MoveDownText}" Click="OnMoveDown" IsEnabled="{Binding CanMoveDown}" Margin="0,0,8,8" Background="#444" Foreground="White" BorderBrush="Transparent" Padding="12,6"/>
-                        </WrapPanel>
-                    </StackPanel>
+                    <!-- List takes 40% of the available width, actions the rest. -->
+                    <Grid ColumnDefinitions="2*,3*" Margin="8">
+                        <!-- Left: Dock Items list (taller) -->
+                        <StackPanel Orientation="Vertical" Spacing="6" Grid.Column="0">
+                            <TextBlock Text="{Binding ItemsTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
+                            <ListBox ItemsSource="{Binding ItemEntries}" SelectedIndex="{Binding SelectedItemIndex}"
+                                     Background="#2D2D2D" Foreground="White" BorderBrush="#444" BorderThickness="1"
+                                     MinHeight="220" MaxHeight="290" Margin="0,0,0,10">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:DockItemListEntry">
+                                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,1">
+                                            <Image Source="{Binding Icon}" Width="18" Height="18"
+                                                   Stretch="Uniform" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Label}" FontSize="12" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </StackPanel>
+                        <!-- Right: Actions (stacked buttons) -->
+                        <StackPanel Orientation="Vertical" Spacing="8" Grid.Column="1" Margin="16,0,0,0">
+                            <TextBlock Text="{Binding ActionsTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
+                            <TextBlock Text="{Binding ActionsHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                            <Button Content="{Binding AddProgramText}" Click="OnAddProgram" Background="#007ACC" Foreground="White" BorderBrush="Transparent" Padding="12,6" HorizontalAlignment="Left"/>
+                            <Button Content="{Binding AddFolderText}" Click="OnAddFolder" Background="#007ACC" Foreground="White" BorderBrush="Transparent" Padding="12,6" HorizontalAlignment="Left"/>
+                            <Button Content="{Binding AddModuleText}" Click="OnAddModule" Background="#007ACC" Foreground="White" BorderBrush="Transparent" Padding="12,6" HorizontalAlignment="Left"/>
+                            <Button Content="{Binding RemoveText}" Click="OnRemove" IsEnabled="{Binding CanRemove}" Background="#D33" Foreground="White" BorderBrush="Transparent" Padding="12,6" HorizontalAlignment="Left"/>
+                            <Button Content="{Binding MoveUpText}" Click="OnMoveUp" IsEnabled="{Binding CanMoveUp}" Background="#444" Foreground="White" BorderBrush="Transparent" Padding="12,6" HorizontalAlignment="Left"/>
+                            <Button Content="{Binding MoveDownText}" Click="OnMoveDown" IsEnabled="{Binding CanMoveDown}" Background="#444" Foreground="White" BorderBrush="Transparent" Padding="12,6" HorizontalAlignment="Left"/>
+                        </StackPanel>
+                    </Grid>
                 </TabItem>
                 <!-- Tab 2: Icons Customization -->
                 <TabItem Header="{Binding TabIconsCustomization}">
@@ -133,22 +137,30 @@
                             <RadioButton Content="{Binding StaticText}" IsChecked="{Binding IsStaticMode}" Foreground="White"/>
                             <RadioButton Content="{Binding DynamicText}" IsChecked="{Binding !IsStaticMode}" Foreground="White"/>
                         </StackPanel>
-                        <TextBlock Text="{Binding AlignmentTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,8,0,0"/>
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <TextBlock Text="{Binding VerticalText}" VerticalAlignment="Center" Foreground="#CCC"/>
-                            <ComboBox ItemsSource="{Binding VerticalAnchors}" SelectedItem="{Binding VerticalAnchor}" Background="#2D2D2D" Foreground="White" MinWidth="100"/>
-                            <TextBlock Text="{Binding HorizontalText}" VerticalAlignment="Center" Foreground="#CCC"/>
-                            <ComboBox ItemsSource="{Binding HorizontalAnchors}" SelectedItem="{Binding HorizontalAnchor}" Background="#2D2D2D" Foreground="White" MinWidth="100"/>
+
+                        <!-- Static-only: alignment + screen spacing -->
+                        <StackPanel Orientation="Vertical" IsVisible="{Binding IsStaticMode}">
+                            <TextBlock Text="{Binding AlignmentTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,8,0,0"/>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="{Binding VerticalText}" VerticalAlignment="Center" Foreground="#CCC"/>
+                                <ComboBox ItemsSource="{Binding VerticalAnchors}" SelectedItem="{Binding VerticalAnchor}" Background="#2D2D2D" Foreground="White" MinWidth="100"/>
+                                <TextBlock Text="{Binding HorizontalText}" VerticalAlignment="Center" Foreground="#CCC"/>
+                                <ComboBox ItemsSource="{Binding HorizontalAnchors}" SelectedItem="{Binding HorizontalAnchor}" Background="#2D2D2D" Foreground="White" MinWidth="100"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding ScreenSpacingTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,8,0,0"/>
+                            <StackPanel Orientation="Vertical" Spacing="6">
+                                <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding TopSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding TopSpacing}" Width="320"/></StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding LeftSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding LeftSpacing}" Width="320"/></StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding RightSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding RightSpacing}" Width="320"/></StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding BottomSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding BottomSpacing}" Width="320"/></StackPanel>
+                            </StackPanel>
                         </StackPanel>
-                        <TextBlock Text="{Binding ScreenSpacingTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,8,0,0"/>
-                        <StackPanel Orientation="Vertical" Spacing="6">
-                            <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding TopSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding TopSpacing}" Width="320"/></StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding LeftSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding LeftSpacing}" Width="320"/></StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding RightSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding RightSpacing}" Width="320"/></StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding BottomSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding BottomSpacing}" Width="320"/></StackPanel>
+
+                        <!-- Dynamic-only: drag hint -->
+                        <StackPanel Orientation="Vertical" IsVisible="{Binding !IsStaticMode}">
+                            <TextBlock Text="{Binding DynamicPosTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,8,0,0"/>
+                            <TextBlock Text="{Binding DynamicPosHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <TextBlock Text="{Binding DynamicPosTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,8,0,0"/>
-                        <TextBlock Text="{Binding DynamicPosHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
                     </StackPanel>
                 </TabItem>
                 <!-- general tab below -->

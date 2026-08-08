@@ -1,8 +1,12 @@
 using System.Collections.ObjectModel;
+using Avalonia.Media.Imaging;
 using CedroModernDock.Core.Application;
 using CedroModernDock.Core.Models;
 
 namespace CedroModernDock.ViewModels;
+
+/// <summary>One selectable Windows module: display name + icon.</summary>
+public sealed record WindowsModuleEntry(string Name, Bitmap? Icon);
 
 /// <summary>ViewModel for the Add Windows Modules modal. Port of AddWindowsModulesModalController.</summary>
 public class AddWindowsModulesViewModel : ViewModelBase
@@ -13,7 +17,7 @@ public class AddWindowsModulesViewModel : ViewModelBase
     private readonly Action _dockRefreshAction;
     private int _selectedIndex = -1;
 
-    public ObservableCollection<string> ModuleNames { get; } = new();
+    public ObservableCollection<WindowsModuleEntry> ModuleNames { get; } = new();
 
     public int SelectedIndex
     {
@@ -23,8 +27,6 @@ public class AddWindowsModulesViewModel : ViewModelBase
 
     public string Title => _appServices.LocalizationService.Text("windowsModule.modal.title");
     public string Subtitle => _appServices.LocalizationService.Text("windowsModule.modal.subtitle");
-    public string AvailableTitle => _appServices.LocalizationService.Text("windowsModule.modal.available.title");
-    public string AvailableHelper => _appServices.LocalizationService.Text("windowsModule.modal.available.helper");
     public string AddButtonText => _appServices.LocalizationService.Text("windowsModule.modal.addSelected");
 
     public AddWindowsModulesViewModel(AppServices appServices, Action dockRefreshAction)
@@ -59,14 +61,28 @@ public class AddWindowsModulesViewModel : ViewModelBase
         ModuleNames.Clear();
         foreach (var id in ModuleIds)
         {
-            ModuleNames.Add(id switch
+            string name = id switch
             {
                 "mypc" => loc.Text("windowsModule.myComputer"),
                 "trash" => loc.Text("windowsModule.recycleBin"),
                 "ctrlpnl" => loc.Text("windowsModule.controlPanel"),
                 "pconfig" => loc.Text("windowsModule.settings"),
                 _ => id
-            });
+            };
+            ModuleNames.Add(new WindowsModuleEntry(name, LoadModuleIcon(id)));
         }
+    }
+
+    private static Bitmap? LoadModuleIcon(string moduleId)
+    {
+        string? iconPath = moduleId switch
+        {
+            "mypc" => "/com/github/arthurdeka/cedromoderndock/icons/my_computer.png",
+            "trash" => "/com/github/arthurdeka/cedromoderndock/icons/trash.png",
+            "ctrlpnl" => "/com/github/arthurdeka/cedromoderndock/icons/control.png",
+            "pconfig" => "/com/github/arthurdeka/cedromoderndock/icons/windows_settings.png",
+            _ => null
+        };
+        return IconLoader.LoadFromAsset(IconLoader.MapResourcePath(iconPath));
     }
 }

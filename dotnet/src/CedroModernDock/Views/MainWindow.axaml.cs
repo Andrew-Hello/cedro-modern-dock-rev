@@ -195,7 +195,9 @@ public partial class MainWindow : Window
         }
         _previewPopup.ShowFor(windows, label,
             appearance.GetDockColorRGB(), appearance.GetDockBorderRounding(),
-            appearance.GetDockTransparencyPercentage() / 100.0, button);
+            appearance.GetDockTransparencyPercentage() / 100.0, button,
+            verticalDock: _appServices.AppearanceService.GetVerticalDock(),
+            horizontalAnchor: _appServices.PositioningService.GetHorizontalAnchor());
     }
 
     private void OnItemPointerExited(object? sender, PointerEventArgs e)

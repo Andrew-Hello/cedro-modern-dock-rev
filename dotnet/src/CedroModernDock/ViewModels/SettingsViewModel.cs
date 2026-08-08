@@ -174,6 +174,13 @@ public partial class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _showUnpinnedRunningApps, value);
     }
 
+    private bool _isVerticalDock;
+    public bool IsVerticalDock
+    {
+        get => _isVerticalDock;
+        set => SetProperty(ref _isVerticalDock, value);
+    }
+
     public SettingsViewModel(AppServices appServices, Action dockRefreshAction,
         Action<DockPositioningMode> positioningModeChangeAction)
     {
@@ -208,6 +215,7 @@ public partial class SettingsViewModel : ViewModelBase
         SelectedLanguage = _appServices.LocalizationService.GetCurrentLanguage();
         IsAutoStartEnabled = Infrastructure.Windows.Adapters.AutoStartHelper.IsAutoStartEnabled();
         ShowUnpinnedRunningApps = app.GetShowUnpinnedRunningApps();
+        IsVerticalDock = app.GetVerticalDock();
         _isInitialized = true;
     }
 
@@ -227,6 +235,7 @@ public partial class SettingsViewModel : ViewModelBase
             case nameof(SelectedLanguage): OnLanguageChanged(SelectedLanguage); break;
             case nameof(IsAutoStartEnabled): OnAutoStartChanged(); break;
             case nameof(ShowUnpinnedRunningApps): OnShowUnpinnedRunningAppsChanged(); break;
+            case nameof(IsVerticalDock): OnVerticalDockChanged(); break;
             case nameof(IsStaticMode): OnPositioningModeChanged(); break;
             case nameof(VerticalAnchor): OnVerticalAnchorChanged(); break;
             case nameof(HorizontalAnchor): OnHorizontalAnchorChanged(); break;
@@ -269,6 +278,12 @@ public partial class SettingsViewModel : ViewModelBase
     public void OnShowUnpinnedRunningAppsChanged()
     {
         _appServices.AppearanceService.SetShowUnpinnedRunningApps(ShowUnpinnedRunningApps);
+        _dockRefreshAction();
+    }
+
+    public void OnVerticalDockChanged()
+    {
+        _appServices.AppearanceService.SetVerticalDock(IsVerticalDock);
         _dockRefreshAction();
     }
     public void OnPositioningModeChanged()

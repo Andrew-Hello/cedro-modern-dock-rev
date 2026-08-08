@@ -9,6 +9,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using CedroModernDock.Core.Application;
 using CedroModernDock.Core.Domain;
+using CedroModernDock.Core.Models;
 using CedroModernDock.Infrastructure.Windows.Native;
 
 namespace CedroModernDock.Views;
@@ -45,6 +46,8 @@ public partial class WindowPreviewPopup : Window
     private bool _regPostQueued;
     private Button? _positionAnchor;
     private bool _repositionPending;
+    private bool _verticalDock;
+    private DockHorizontalAnchor _horizontalAnchor = DockHorizontalAnchor.LEFT;
     private double _fadeValue = 1;
     private bool _fadeIn;
     private bool _fadeFinishHide;
@@ -78,8 +81,11 @@ public partial class WindowPreviewPopup : Window
 
     /// <summary>Populates rows and positions the popup over <paramref name="anchor"/>.</summary>
     public void ShowFor(IReadOnlyList<WindowInfo> windows, string appLabel,
-        string colorRgb, int rounding, double transparency, Button anchor)
+        string colorRgb, int rounding, double transparency, Button anchor,
+        bool verticalDock = false, DockHorizontalAnchor horizontalAnchor = DockHorizontalAnchor.LEFT)
     {
+        _verticalDock = verticalDock;
+        _horizontalAnchor = horizontalAnchor;
         _appLabel = appLabel;
         _colorRgb = colorRgb;
         _rounding = rounding;
@@ -212,14 +218,39 @@ public partial class WindowPreviewPopup : Window
         if (screen is not null)
         {
             var work = screen.WorkingArea;
-            if (popupY + h > work.Bottom)
+            if (_verticalDock)
             {
-                var anchorTop = anchor.PointToScreen(new Point(anchor.Bounds.Width / 2, 0));
-                popupY = (int)(anchorTop.Y - gapAbove * scale) - h - 4;
-            }
+                // Vertical dock: popup to the left/right of the item, vertically
+                // centered on it. Dock on the left edge -> popup on the right;
+                // dock on the right edge -> popup on the left.
+                int popupRightX = (int)(anchor.PointToScreen(
+                    new Point(anchor.Bounds.Width, anchor.Bounds.Height / 2)).X + 4);
+                int popupLeftX = (int)(anchor.PointToScreen(
+                    new Point(0, anchor.Bounds.Height / 2)).X) - w - 4;
 
-            popupX = Math.Max(work.X + 4, Math.Min(popupX, work.Right - w - 4));
-            popupY = Math.Max(work.Y + 4, popupY);
+                bool placeRight = _horizontalAnchor != DockHorizontalAnchor.RIGHT;
+                int px = placeRight ? popupRightX : popupLeftX;
+                int py = anchorCenter.Y - h / 2;
+
+                if (placeRight && px + w > work.Right)
+                    px = popupLeftX;
+                else if (!placeRight && px < work.X)
+                    px = popupRightX;
+
+                popupX = Math.Max(work.X + 4, Math.Min(px, work.Right - w - 4));
+                popupY = Math.Max(work.Y + 4, Math.Min(py, work.Bottom - h - 4));
+            }
+            else
+            {
+                if (popupY + h > work.Bottom)
+                {
+                    var anchorTop = anchor.PointToScreen(new Point(anchor.Bounds.Width / 2, 0));
+                    popupY = (int)(anchorTop.Y - gapAbove * scale) - h - 4;
+                }
+
+                popupX = Math.Max(work.X + 4, Math.Min(popupX, work.Right - w - 4));
+                popupY = Math.Max(work.Y + 4, popupY);
+            }
         }
         Position = new PixelPoint(popupX, popupY);
     }

@@ -14,7 +14,7 @@
         ShowInTaskbar="False"
         TransparencyLevelHint="Transparent"
         Background="Transparent"
-        SizeToContent="Width"
+        SizeToContent="WidthAndHeight"
         PointerPressed="OnPointerPressed">
 
     <Design.DataContext>
@@ -30,12 +30,12 @@
             VerticalAlignment="Center"
             ClipToBounds="True">
 
-        <StackPanel Orientation="Horizontal" Spacing="{Binding Spacing}">
+        <StackPanel Orientation="{Binding DockOrientation}" Spacing="{Binding Spacing}">
             <!-- Pinned dock items -->
             <ItemsControl ItemsSource="{Binding Items}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" Spacing="{Binding Spacing}" />
+                        <StackPanel Orientation="{Binding DockOrientation}" Spacing="{Binding Spacing}" />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
 
@@ -104,7 +104,15 @@
                    Stretch="Uniform"
                    VerticalAlignment="Center"
                    Margin="4,0"
-                   IsVisible="{Binding HasRunningApps}"
+                   IsVisible="{Binding !IsVerticalDock}"
+                   RenderOptions.BitmapInterpolationMode="HighQuality"/>
+            <Image Source="/Assets/icons/open-softwares-separator-2.png"
+                   Width="{Binding IconsSize}" Height="14"
+                   Stretch="Uniform"
+                   VerticalAlignment="Center"
+                   HorizontalAlignment="Center"
+                   Margin="0,4"
+                   IsVisible="{Binding IsVerticalDock}"
                    RenderOptions.BitmapInterpolationMode="HighQuality"/>
 
             <!-- Running-but-unpinned apps (taskbar-like) -->
@@ -112,7 +120,7 @@
                           IsVisible="{Binding HasRunningApps}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" Spacing="{Binding Spacing}" />
+                        <StackPanel Orientation="{Binding DockOrientation}" Spacing="{Binding Spacing}" />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
 

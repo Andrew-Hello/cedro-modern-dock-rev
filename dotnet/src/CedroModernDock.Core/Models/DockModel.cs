@@ -78,6 +78,9 @@ public class DockModel
     [JsonPropertyName("showUnpinnedRunningApps")]
     public bool ShowUnpinnedRunningApps { get; set; } = true;
 
+    [JsonPropertyName("verticalDock")]
+    public bool VerticalDock { get; set; }
+
     public void AddItem(DockItem item) => Items.Add(item);
 
     public void RemoveItem(int index) => Items.RemoveAt(index);

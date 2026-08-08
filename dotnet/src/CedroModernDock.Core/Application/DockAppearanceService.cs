@@ -67,4 +67,12 @@ public class DockAppearanceService
         GetDock().ShowUnpinnedRunningApps = value;
         _dockService.SaveChanges();
     }
+
+    public bool GetVerticalDock() => GetDock().VerticalDock;
+
+    public void SetVerticalDock(bool value)
+    {
+        GetDock().VerticalDock = value;
+        _dockService.SaveChanges();
+    }
 }

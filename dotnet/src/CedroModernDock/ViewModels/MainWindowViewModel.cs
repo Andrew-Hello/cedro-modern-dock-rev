@@ -40,7 +40,26 @@ public partial class MainWindowViewModel : ViewModelBase
         private set => SetProperty(ref _hasRunningApps, value);
     }
 
-    public int IconsSize { get => _iconsSize; set => SetProperty(ref _iconsSize, value); }
+    private bool _isVerticalDock;
+    public bool IsVerticalDock
+    {
+        get => _isVerticalDock;
+        set
+        {
+            if (SetProperty(ref _isVerticalDock, value))
+                OnPropertyChanged(nameof(DockOrientation));
+        }
+    }
+
+    /// <summary>Layout direction of the dock items (horizontal by default, vertical when enabled).</summary>
+    public Avalonia.Layout.Orientation DockOrientation
+        => IsVerticalDock ? Avalonia.Layout.Orientation.Vertical : Avalonia.Layout.Orientation.Horizontal;
+
+    public int IconsSize
+    {
+        get => _iconsSize;
+        set => SetProperty(ref _iconsSize, value);
+    }
     public int Spacing { get => _spacing; set => SetProperty(ref _spacing, value); }
     public int BorderRounding
     {
@@ -89,6 +108,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public void UpdateDockUI()
     {
         if (_appServices == null) return;
+        IsVerticalDock = _appServices.AppearanceService.GetVerticalDock();
         Items.Clear();
         var dock = _appServices.DockService.GetDock();
         var loc = _appServices.LocalizationService;

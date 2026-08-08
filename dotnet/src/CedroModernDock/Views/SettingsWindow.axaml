@@ -244,6 +244,8 @@
                         <CheckBox Content="Start with Windows" IsChecked="{Binding IsAutoStartEnabled}" Foreground="#CCCCCC" Margin="0,8,0,0"/>
                         <CheckBox Content="Show running programs that aren't pinned on the Dock"
                                   IsChecked="{Binding ShowUnpinnedRunningApps}" Foreground="#CCCCCC" Margin="0,8,0,0"/>
+                        <CheckBox Content="Arrange Dock on the vertical"
+                                  IsChecked="{Binding IsVerticalDock}" Foreground="#CCCCCC" Margin="0,8,0,0"/>
                         <Button Content="{Binding AcknowledgementsText}" Click="OnAcknowledgements"
                                 Background="#007ACC" Foreground="White" BorderBrush="Transparent"
                                 Padding="16,8" HorizontalAlignment="Left" Margin="0,8,0,0"/>

@@ -237,9 +237,6 @@
                 <!-- Tab 5: General -->
                 <TabItem Header="{Binding TabGeneral}">
                     <StackPanel Orientation="Vertical" Spacing="8" Margin="16,12">
-                        <TextBlock Text="{Binding VersionText}" Foreground="#CCCCCC"/>
-                        <TextBlock Text="{Binding RepoText}" Foreground="#CCCCCC"/>
-                        <TextBlock Text="{Binding ContactText}" Foreground="#CCCCCC"/>
                         <TextBlock Text="{Binding OpenSourceText}" Foreground="#CCCCCC" FontWeight="SemiBold" Margin="0,8,0,0"/>
                         <CheckBox Content="Start with Windows" IsChecked="{Binding IsAutoStartEnabled}" Foreground="#CCCCCC" Margin="0,8,0,0"/>
                         <CheckBox Content="Show running programs that aren't pinned on the Dock"
@@ -249,6 +246,9 @@
                         <Button Content="{Binding AcknowledgementsText}" Click="OnAcknowledgements"
                                 Background="#007ACC" Foreground="White" BorderBrush="Transparent"
                                 Padding="16,8" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+                        <TextBlock Text="{Binding VersionText}" Foreground="#CCCCCC"/>
+                        <TextBlock Text="{Binding RepoText}" Foreground="#CCCCCC"/>
+                        <TextBlock Text="{Binding ContactText}" Foreground="#CCCCCC"/>
                     </StackPanel>
                 </TabItem>
             </TabControl>

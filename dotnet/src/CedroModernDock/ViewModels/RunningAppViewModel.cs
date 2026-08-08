@@ -33,7 +33,12 @@ public class RunningAppViewModel : ViewModelBase
     }
 
     /// <summary>The icon render size in pixels (mirrors the dock's IconsSize setting).</summary>
-    public int IconSize { get; set; } = 48;
+    private int _iconSize = 48;
+    public int IconSize
+    {
+        get => _iconSize;
+        set => SetProperty(ref _iconSize, value);
+    }
 
     public RunningAppViewModel(string executablePath, string label)
     {

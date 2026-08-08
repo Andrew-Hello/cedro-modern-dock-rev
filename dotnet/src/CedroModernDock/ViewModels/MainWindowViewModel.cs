@@ -191,6 +191,8 @@ public partial class MainWindowViewModel : ViewModelBase
         var appearance = _appServices.AppearanceService;
 
         IconsSize = appearance.GetIconsSize();
+        foreach (var app in RunningApps)
+            app.IconSize = IconsSize;
         Spacing = appearance.GetSpacingBetweenIcons();
         BorderRounding = appearance.GetDockBorderRounding();
 

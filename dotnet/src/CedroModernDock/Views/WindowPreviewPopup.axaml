@@ -5,6 +5,7 @@
         CanResize="False" SystemDecorations="None" ShowInTaskbar="False"
         Topmost="True" Background="Transparent" TransparencyLevelHint="Transparent"
         ShowActivated="False" SizeToContent="WidthAndHeight"
+        Cursor="Hand"
         PointerEntered="OnPointerEntered"
         PointerExited="OnPointerExited">
     <StackPanel x:Name="RowsPanel" Orientation="Vertical" Spacing="6" Margin="4"/>

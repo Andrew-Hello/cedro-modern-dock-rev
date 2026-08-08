@@ -17,7 +17,9 @@ public sealed class ThumbnailWindow : IDisposable
     private const string ClassName = "CedroDockThumbnailWindow";
 
     private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+    private const int DWMWCP_DONOTROUND = 1;
     private const int DWMWCP_ROUND = 2;
+    private const int DWMWCP_ROUNDSMALL = 3;
 
     private static readonly IntPtr _hInstance = Kernel32.GetModuleHandle(null);
 
@@ -56,10 +58,13 @@ public sealed class ThumbnailWindow : IDisposable
     }
 
     /// <summary>
-    /// Creates a rounded, click-through thumbnail window for <paramref name="sourceHwnd"/>,
-    /// with no DWM border (DWMWA_WINDOW_CORNER_PREFERENCE only).
+    /// Creates a click-through thumbnail window for <paramref name="sourceHwnd"/>,
+    /// with no DWM border. <paramref name="rounding"/> is the desired corner radius
+    /// in pixels (same value the popup rows use): DWM clips the thumbnail at the
+    /// nearest supported preset (square, small ~4px or standard ~8px), so very
+    /// small dock roundings yield nearly square previews instead of the fixed 8px.
     /// </summary>
-    public ThumbnailWindow(IntPtr sourceHwnd, int x, int y, int width, int height)
+    public ThumbnailWindow(IntPtr sourceHwnd, int x, int y, int width, int height, int rounding = 8)
     {
         _x = x; _y = y; _width = width; _height = height;
         _hwnd = User32.CreateWindowEx(
@@ -71,7 +76,12 @@ public sealed class ThumbnailWindow : IDisposable
         if (_hwnd == IntPtr.Zero)
             throw new InvalidOperationException("Failed to create thumbnail window");
 
-        int corner = DWMWCP_ROUND;
+        int corner = rounding switch
+        {
+            <= 2 => DWMWCP_DONOTROUND,
+            <= 5 => DWMWCP_ROUNDSMALL,
+            _ => DWMWCP_ROUND
+        };
         DwmThumbnailInterop.SetWindowAttribute(_hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, corner);
 
         if (!DwmThumbnailInterop.Register(_hwnd, sourceHwnd, out _thumb))
@@ -88,6 +98,22 @@ public sealed class ThumbnailWindow : IDisposable
         _x = x; _y = y;
         User32.SetWindowPos(_hwnd, Win32Constants.HWND_TOPMOST, x, y, 0, 0,
             Win32Constants.SWP_NOSIZE | Win32Constants.SWP_NOACTIVATE);
+    }
+
+    /// <summary>
+    /// Sets the window's per-window alpha (0..255) via layered attributes, used
+    /// to fade thumbnails in/out in sync with the popup window.
+    /// </summary>
+    public void SetOpacity(byte alpha)
+    {
+        IntPtr exStylePtr = User32.GetWindowLongPtr(_hwnd, Win32Constants.GWL_EXSTYLE);
+        int exStyle = exStylePtr.ToInt32();
+        if ((exStyle & Win32Constants.WS_EX_LAYERED) == 0)
+        {
+            User32.SetWindowLongPtr(_hwnd, Win32Constants.GWL_EXSTYLE,
+                new IntPtr(exStyle | Win32Constants.WS_EX_LAYERED));
+        }
+        User32.SetLayeredWindowAttributes(_hwnd, 0, alpha, Win32Constants.LWA_ALPHA);
     }
 
     public void Dispose()

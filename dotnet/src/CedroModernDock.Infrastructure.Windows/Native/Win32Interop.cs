@@ -18,6 +18,10 @@ public static class Win32Constants
     public const int WS_EX_NOACTIVATE = 0x08000000;
     public const int WS_EX_TOPMOST = 0x00000008;
     public const int WS_EX_APPWINDOW = 0x00040000;
+    public const int WS_EX_LAYERED = 0x00080000;
+
+    // SetLayeredWindowAttributes flags
+    public const uint LWA_ALPHA = 0x2;
 
     // ShowWindow commands
     public const int SW_RESTORE = 9;
@@ -128,6 +132,10 @@ public static class User32
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool DestroyWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool SetLayeredWindowAttributes(
+        IntPtr hWnd, uint crKey, byte bAlpha, uint dwFlags);
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool RegisterShellHookWindow(IntPtr hwnd);

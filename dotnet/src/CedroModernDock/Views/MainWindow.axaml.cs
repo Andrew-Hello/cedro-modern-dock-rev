@@ -22,7 +22,6 @@ public partial class MainWindow : Window
     private WindowPreviewPopup? _previewPopup;
     private Button? _hoveredButton;
     private int _previewRequestId;
-    private bool _isOverPreview;
     private readonly DispatcherTimer _previewHideDebounce = new() { Interval = TimeSpan.FromMilliseconds(80) };
 
     public MainWindow()
@@ -157,6 +156,14 @@ public partial class MainWindow : Window
             _previewPopup.PointerEnteredCallback = OnPopupPointerEntered;
             _previewPopup.PointerExitedCallback = OnPopupPointerExited;
         }
+        // Re-hovering the same item (e.g. after visiting the popup) must not
+        // tear down and rebuild the live thumbnails: that races with the hide
+        // debounce and can leave rows blank. Keep the already-shown popup.
+        if (_previewPopup.IsVisible && _previewPopup.MatchesSource(windows))
+        {
+            _previewPopup.CancelHide();
+            return;
+        }
         _previewPopup.ShowFor(windows, vm.Label,
             appearance.GetDockColorRGB(), appearance.GetDockBorderRounding(),
             appearance.GetDockTransparencyPercentage() / 100.0, button);
@@ -166,7 +173,13 @@ public partial class MainWindow : Window
     {
         if (_hoveredButton == sender) _hoveredButton = null;
         _previewHideDebounce.Stop();
-        _previewHideDebounce.Start();
+        // During fast icon-to-icon moves the previous icon's Exit can be
+        // delivered AFTER the next icon's Enter. Re-arming the hide timer then
+        // hides the popup 80ms later (the cursor is over the new icon, not the
+        // popup) and the requestId bump drops the pending preview load — the
+        // popup would never show again until the pointer leaves and re-enters.
+        if (_hoveredButton == null)
+            _previewHideDebounce.Start();
     }
 
     private void HidePreview()
@@ -174,25 +187,34 @@ public partial class MainWindow : Window
         ++_previewRequestId;
         _previewPopup?.HidePopup();
         _hoveredButton = null;
-        _isOverPreview = false;
     }
 
     private void OnPopupPointerEntered()
     {
-        _isOverPreview = true;
         _previewHideDebounce.Stop();
+        // Pointer returned during a fade-out: reverse it instead of hiding.
+        _previewPopup?.CancelHide();
     }
 
     private void OnPopupPointerExited()
     {
-        _isOverPreview = false;
         _previewHideDebounce.Stop();
-        _previewHideDebounce.Start();
+        // Returning to a dock item (pointer now over the button) fires this
+        // after OnItemPointerEntered already re-stopped the hide timer. Don't
+        // re-arm it in that case: the item's own pointer handling owns the
+        // hide decision, and re-arming here hides the popup 90ms later even
+        // though the cursor is over the very item that shows the preview.
+        if (_hoveredButton == null)
+            _previewHideDebounce.Start();
     }
 
     private void OnPopupThumbnailClicked(IntPtr sourceHwnd)
     {
-        HidePreview();
+        // Click-to-activate: hide instantly (no fade), release the pointer
+        // capture held by the pressed row, then bring the window forward.
+        ++_previewRequestId;
+        _previewPopup?.HideNow();
+        _hoveredButton = null;
         if (sourceHwnd != IntPtr.Zero)
             _appServices?.WindowPreviewService.Activate(new WindowInfo(sourceHwnd, ""));
     }

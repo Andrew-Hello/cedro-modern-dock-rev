@@ -30,6 +30,11 @@ public partial class WindowPreviewPopup : Window
     // 75% of the popup width (144 thumbnail + 2*6 row padding + 2*4 panel margin).
     private const int TitleMaxWidth = 123;
 
+    // Fast fade-in/out applied to the popup window and to each native thumbnail
+    // (driven via layered-window alpha so the DWM previews fade in lock-step).
+    private const double FadeMilliseconds = 120;
+    private const double FadeTickMilliseconds = 12;
+
     private readonly List<(ThumbnailWindow? Thumb, Border Area)> _rows = new();
     private IReadOnlyList<IntPtr> _sourceHandles = Array.Empty<IntPtr>();
     private string _appLabel = "";
@@ -40,10 +45,17 @@ public partial class WindowPreviewPopup : Window
     private bool _regPostQueued;
     private Button? _positionAnchor;
     private bool _repositionPending;
+    private double _fadeValue = 1;
+    private bool _fadeIn;
+    private bool _fadeFinishHide;
+    private bool _fadeRunning;
+    private IPointer? _pressedPointer;
+    private readonly DispatcherTimer _fadeTimer = new() { Interval = TimeSpan.FromMilliseconds(FadeTickMilliseconds) };
 
     public WindowPreviewPopup()
     {
         InitializeComponent();
+        _fadeTimer.Tick += (_, _) => OnFadeTick();
         // Position only once the window has a real layout size: before the first
         // Show the content tree is not attached (DesiredSize is 0), and after
         // BuildRows the measure is invalidated, so positioning in ShowFor would
@@ -72,16 +84,28 @@ public partial class WindowPreviewPopup : Window
         _colorRgb = colorRgb;
         _rounding = rounding;
         _transparency = transparency;
-        _hwnd = IntPtr.Zero;
         _sourceHandles = new List<IntPtr>(windows.Select(w => w.Handle));
 
         bool wasVisible = IsVisible;
         _positionAnchor = anchor;
         _repositionPending = true;
+        // Cancel any in-flight fade so the new preview starts from a clean,
+        // fully opaque state (e.g. re-showing right after a hide began).
+        CancelFade();
         BuildRows(windows);
         if (wasVisible) PositionNear(anchor);
+        if (!wasVisible)
+        {
+            // Fade in from transparent on first show.
+            _fadeValue = 0;
+            Opacity = 0;
+        }
         Show();
-        if (wasVisible && !_regPostQueued)
+        if (!wasVisible)
+        {
+            StartFade(true, finishHide: false);
+        }
+        else if (!_regPostQueued)
         {
             _regPostQueued = true;
             Dispatcher.UIThread.Post(() =>
@@ -138,7 +162,14 @@ public partial class WindowPreviewPopup : Window
                 Child = content
             };
             RowsPanel.Children.Add(row);
-            row.PointerPressed += (_, _) => ThumbnailClicked?.Invoke(window.Handle);
+            row.PointerPressed += (_, e) =>
+            {
+                // The press implicitly captures the pointer; when the popup
+                // hides right after (click-to-activate), the capture must be
+                // released or the dock stops receiving hover until clicked.
+                _pressedPointer = e.Pointer;
+                ThumbnailClicked?.Invoke(window.Handle);
+            };
             _rows.Add((null, thumbArea));
         }
     }
@@ -247,7 +278,12 @@ public partial class WindowPreviewPopup : Window
             ThumbnailWindow thumb;
             try
             {
-                thumb = new ThumbnailWindow(sourceHwnd, px, py, pw, ph);
+                // Same rounding rule as the Avalonia rows: follow the dock
+                // rounding, capped at the DWM maximum, with no minimum.
+                int rounding = Math.Min(_rounding, MaxRounding);
+                thumb = new ThumbnailWindow(sourceHwnd, px, py, pw, ph, rounding);
+                if (_fadeValue < 1)
+                    thumb.SetOpacity((byte)Math.Clamp(_fadeValue * 255, 0, 255));
             }
             catch (Exception)
             {
@@ -276,10 +312,118 @@ public partial class WindowPreviewPopup : Window
         return false;
     }
 
+    /// <summary>
+    /// True when the shown rows already target exactly these source windows,
+    /// so re-hovering the same item can keep the live thumbnails untouched.
+    /// </summary>
+    public bool MatchesSource(IReadOnlyList<WindowInfo> windows)
+    {
+        if (!IsVisible || windows.Count != _sourceHandles.Count) return false;
+        for (int i = 0; i < windows.Count; i++)
+        {
+            if (windows[i].Handle != _sourceHandles[i]) return false;
+        }
+        return true;
+    }
+
     public void HidePopup()
     {
+        // Fade out, then tear down the rows and hide the window. If the pointer
+        // returns during the fade (hover), CancelHide re-shows instead.
+        if (!IsVisible) return;
+        ReleasePressedCapture();
+        StartFade(false, finishHide: true);
+    }
+
+    /// <summary>
+    /// Hides immediately without fading. Used when a thumbnail is clicked to
+    /// activate a window: the preview must vanish at once (taskbar-style),
+    /// not linger half-faded above the newly opened window.
+    /// </summary>
+    public void HideNow()
+    {
+        if (!IsVisible) return;
+        if (_fadeRunning)
+        {
+            _fadeTimer.Stop();
+            _fadeRunning = false;
+            _fadeFinishHide = false;
+        }
+        ReleasePressedCapture();
         ClearRows();
         Hide();
+        Opacity = 1;
+        _fadeValue = 1;
+    }
+
+    private void ReleasePressedCapture()
+    {
+        if (_pressedPointer is null) return;
+        _pressedPointer.Capture(null);
+        _pressedPointer = null;
+    }
+
+    private void StartFade(bool fadeIn, bool finishHide)
+    {
+        _fadeIn = fadeIn;
+        _fadeFinishHide = finishHide;
+        _fadeRunning = true;
+        if (!_fadeTimer.IsEnabled)
+            _fadeTimer.Start();
+    }
+
+    /// <summary>Reverses an in-progress fade-out (pointer returned over the popup).</summary>
+    public void CancelHide()
+    {
+        if (!_fadeRunning || _fadeIn) return;
+        StartFade(true, finishHide: false);
+    }
+
+    /// <summary>
+    /// Stops any running fade and snaps the popup to full opacity. Called when
+    /// the popup is re-shown for a different item, so a pending fade-out cannot
+    /// hide the freshly built preview.
+    /// </summary>
+    private void CancelFade()
+    {
+        if (!_fadeRunning) return;
+        _fadeTimer.Stop();
+        _fadeRunning = false;
+        _fadeFinishHide = false;
+        _fadeValue = 1;
+        Opacity = 1;
+    }
+
+    private void OnFadeTick()
+    {
+        double step = FadeTickMilliseconds / FadeMilliseconds;
+        _fadeValue = _fadeIn ? Math.Min(1, _fadeValue + step) : Math.Max(0, _fadeValue - step);
+        ApplyFadeOpacity(_fadeValue);
+        if ((_fadeIn && _fadeValue >= 1) || (!_fadeIn && _fadeValue <= 0))
+        {
+            _fadeTimer.Stop();
+            _fadeRunning = false;
+            if (!_fadeIn && _fadeFinishHide)
+                FinishHide();
+        }
+    }
+
+    private void ApplyFadeOpacity(double value)
+    {
+        Opacity = value;
+        byte alpha = (byte)Math.Clamp(value * 255, 0, 255);
+        foreach (var (thumb, _) in _rows)
+            thumb?.SetOpacity(alpha);
+    }
+
+    private void FinishHide()
+    {
+        _fadeValue = 0;
+        ReleasePressedCapture();
+        ClearRows();
+        Hide();
+        Opacity = 1;
+        _fadeValue = 1;
     }
 
     private void OnPointerEntered(object? sender, PointerEventArgs e) => PointerEnteredCallback?.Invoke();

@@ -16,6 +16,13 @@ public class Win32WindowQueryGateway : IWindowQueryGateway
         return windows.Select(w => new WindowInfo(w.Handle, w.Title)).ToList();
     }
 
+    public List<RunningWindowInfo> FindTaskbarWindows()
+    {
+        return Win32WindowQuery.GetTaskbarWindows()
+            .Select(w => new RunningWindowInfo(w.Handle, w.Title, w.ExecutablePath))
+            .ToList();
+    }
+
     public void Activate(WindowInfo windowInfo)
     {
         Win32WindowQuery.ActivateWindow(windowInfo.Handle);

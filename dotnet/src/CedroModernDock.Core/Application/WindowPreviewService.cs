@@ -19,5 +19,8 @@ public class WindowPreviewService
     public bool HasOpenWindows(string? executablePath) =>
         _windowQueryGateway.FindOpenWindows(executablePath).Count > 0;
 
+    public List<RunningWindowInfo> FindTaskbarWindows() =>
+        _windowQueryGateway.FindTaskbarWindows();
+
     public void Activate(WindowInfo windowInfo) => _windowQueryGateway.Activate(windowInfo);
 }

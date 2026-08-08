@@ -1,0 +1,44 @@
+using Avalonia.Media.Imaging;
+
+namespace CedroModernDock.ViewModels;
+
+/// <summary>
+/// A program that is running with open window(s) but is NOT pinned to the dock.
+/// Shown in the running-apps section (right of the separator), mirroring the
+/// Windows taskbar. Hovering shows the window-preview popup; there is no click action.
+/// </summary>
+public class RunningAppViewModel : ViewModelBase
+{
+    private Bitmap? _icon;
+    private bool _isRunning;
+
+    /// <summary>The owning executable path (used to group windows and load the icon).</summary>
+    public string ExecutablePath { get; }
+
+    /// <summary>Display label for the tooltip (fallback to executable name).</summary>
+    public string Label { get; }
+
+    /// <summary>The icon bitmap to render.</summary>
+    public Bitmap? Icon
+    {
+        get => _icon;
+        set => SetProperty(ref _icon, value);
+    }
+
+    /// <summary>True while the app has at least one open window.</summary>
+    public bool IsRunning
+    {
+        get => _isRunning;
+        set => SetProperty(ref _isRunning, value);
+    }
+
+    /// <summary>The icon render size in pixels (mirrors the dock's IconsSize setting).</summary>
+    public int IconSize { get; set; } = 48;
+
+    public RunningAppViewModel(string executablePath, string label)
+    {
+        ExecutablePath = executablePath;
+        Label = label;
+        IsRunning = true;
+    }
+}

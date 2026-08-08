@@ -39,6 +39,9 @@ public static class Win32Constants
     public const int SC_MINIMIZE = 0xF020;
     public const int SIZE_MINIMIZED = 0;
 
+    // GetWindow commands
+    public const int GW_OWNER = 4;
+
     // Window styles
     public const uint WS_POPUP = 0x80000000;
     public const uint WS_VISIBLE = 0x10000000;
@@ -90,6 +93,9 @@ public static class User32
 {
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr GetWindow(IntPtr hWnd, int uCmd);
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool IsWindowVisible(IntPtr hWnd);

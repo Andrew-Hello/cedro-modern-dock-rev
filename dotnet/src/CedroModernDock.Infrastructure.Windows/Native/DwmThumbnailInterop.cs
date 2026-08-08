@@ -59,6 +59,20 @@ public static class DwmThumbnailInterop
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
 
+    /// <summary>DWMWA_CLOAKED: 0=not cloaked, 1=cloaked by app, 2=cloaked by shell (Win+D).</summary>
+    private const int DWMWA_CLOAKED = 14;
+
+    /// <summary>True when the window is cloaked (hidden by the shell, e.g. Win+D).</summary>
+    public static bool IsCloaked(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero) return false;
+        int cloaked = 0;
+        return DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, ref cloaked, sizeof(int)) == 0 && cloaked != 0;
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
+
     /// <summary>Registers a live thumbnail of <paramref name="sourceHwnd"/> into <paramref name="destHwnd"/>.</summary>
     public static bool Register(IntPtr destHwnd, IntPtr sourceHwnd, out IntPtr thumbId)
     {

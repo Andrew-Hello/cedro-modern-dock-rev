@@ -30,6 +30,16 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public ObservableCollection<DockItemViewModel> Items { get; } = new();
 
+    /// <summary>Running-but-unpinned programs shown right of the separator (taskbar-like).</summary>
+    public ObservableCollection<RunningAppViewModel> RunningApps { get; } = new();
+
+    private bool _hasRunningApps;
+    public bool HasRunningApps
+    {
+        get => _hasRunningApps;
+        private set => SetProperty(ref _hasRunningApps, value);
+    }
+
     public int IconsSize { get => _iconsSize; set => SetProperty(ref _iconsSize, value); }
     public int Spacing { get => _spacing; set => SetProperty(ref _spacing, value); }
     public int BorderRounding
@@ -195,6 +205,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 try
                 {
                     RefreshIndicators();
+                    RefreshRunningApps();
                     await Task.Delay(1200, token);
                 }
                 catch (OperationCanceledException) { break; }
@@ -212,6 +223,116 @@ public partial class MainWindowViewModel : ViewModelBase
             bool isOpen = _appServices.WindowPreviewService.HasOpenWindows(item.ExecutablePath);
             Avalonia.Threading.Dispatcher.UIThread.Post(() => item.IsRunning = isOpen);
         }
+    }
+
+    private readonly Dictionary<string, RunningAppViewModel> _runningAppsByPath = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Syncs the running-apps section: taskbar-visible windows, grouped by executable,
+    /// minus programs already pinned in the dock. Only touches the UI when the set
+    /// actually changed, so the preview popup never flickers.
+    /// </summary>
+    private void RefreshRunningApps()
+    {
+        if (_appServices == null) return;
+
+        List<string> pinnedPaths = Items
+            .Where(i => i.Item is DockProgramItemModel)
+            .Select(i => ((DockProgramItemModel)i.Item).ExecutablePath)
+            .ToList();
+
+        List<CedroModernDock.Core.Domain.RunningWindowInfo> windows;
+        try
+        {
+            windows = _appServices.WindowPreviewService.FindTaskbarWindows();
+        }
+        catch
+        {
+            return;
+        }
+
+        var desired = windows
+            .GroupBy(w => w.ExecutablePath, StringComparer.OrdinalIgnoreCase)
+            .Where(g => !IsPinned(g.Key, pinnedPaths))
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (_appServices == null) return;
+
+            bool changed = false;
+
+            // Remove apps that closed or got pinned.
+            foreach (var path in _runningAppsByPath.Keys.ToList())
+            {
+                if (!desired.ContainsKey(path) || IsPinned(path, pinnedPaths))
+                {
+                    RunningApps.Remove(_runningAppsByPath[path]);
+                    _runningAppsByPath.Remove(path);
+                    changed = true;
+                }
+            }
+
+            // Add newly opened apps.
+            foreach (var (path, win) in desired)
+            {
+                if (_runningAppsByPath.ContainsKey(path)) continue;
+                string label = System.IO.Path.GetFileNameWithoutExtension(path);
+                var vm = new RunningAppViewModel(path, label)
+                {
+                    IconSize = _appServices.AppearanceService.GetIconsSize()
+                };
+                LoadRunningIcon(vm);
+                _runningAppsByPath[path] = vm;
+                RunningApps.Add(vm);
+                changed = true;
+            }
+
+            if (changed)
+            {
+                HasRunningApps = RunningApps.Count > 0;
+                RepositionAction?.Invoke();
+                PreviewDismissAction?.Invoke();
+            }
+        });
+    }
+
+    private static bool IsPinned(string executablePath, List<string> pinnedPaths)
+    {
+        string file = System.IO.Path.GetFileName(executablePath);
+        foreach (var pinned in pinnedPaths)
+        {
+            if (string.Equals(pinned, executablePath, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (string.Equals(System.IO.Path.GetFileName(pinned), file, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    private void LoadRunningIcon(RunningAppViewModel vm)
+    {
+        if (_appServices == null) return;
+        string exe = vm.ExecutablePath;
+        var icon = IconLoader.LoadFromFile(_appServices.IconGateway.ResolveProgramIcon(exe));
+        if (icon != null)
+        {
+            vm.Icon = icon;
+            return;
+        }
+        // Not cached yet — extract in the background and push when ready.
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                _appServices.IconGateway.CacheProgramIcon(exe);
+                string? cached = _appServices.IconGateway.ResolveProgramIcon(exe);
+                var loaded = IconLoader.LoadFromFile(cached);
+                if (loaded != null)
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => vm.Icon = loaded);
+            }
+            catch { /* best-effort */ }
+        });
     }
 
     public void Shutdown()

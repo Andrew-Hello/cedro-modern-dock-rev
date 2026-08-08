@@ -120,6 +120,7 @@ public partial class MainWindow : Window
         _previewHideDebounce.Stop();
         int requestId = ++_previewRequestId;
         var programItem = item;
+        string label = vm.Label;
 
         Task.Run(() =>
         {
@@ -132,11 +133,39 @@ public partial class MainWindow : Window
             {
                 windows = new List<WindowInfo>();
             }
-            Dispatcher.UIThread.Post(() => OnPreviewLoaded(requestId, button, vm, windows));
+            Dispatcher.UIThread.Post(() => OnPreviewLoaded(requestId, button, label, windows));
         });
     }
 
-    private void OnPreviewLoaded(int requestId, Button button, DockItemViewModel vm,
+    private void OnRunningAppPointerEntered(object? sender, PointerEventArgs e)
+    {
+        if (sender is not Button button || _appServices == null) return;
+        if (button.DataContext is not RunningAppViewModel vm) return;
+
+        _hoveredButton = button;
+        _previewHideDebounce.Stop();
+        int requestId = ++_previewRequestId;
+        string executablePath = vm.ExecutablePath;
+        string label = vm.Label;
+
+        Task.Run(() =>
+        {
+            List<WindowInfo> windows;
+            try
+            {
+                // Build a throwaway program item to reuse the preview loader.
+                windows = _appServices.WindowPreviewService.LoadPreview(
+                    new DockProgramItemModel(label, executablePath));
+            }
+            catch (Exception)
+            {
+                windows = new List<WindowInfo>();
+            }
+            Dispatcher.UIThread.Post(() => OnPreviewLoaded(requestId, button, label, windows));
+        });
+    }
+
+    private void OnPreviewLoaded(int requestId, Button button, string label,
         List<WindowInfo> windows)
     {
         if (requestId != _previewRequestId || _hoveredButton != button) return;
@@ -164,7 +193,7 @@ public partial class MainWindow : Window
             _previewPopup.CancelHide();
             return;
         }
-        _previewPopup.ShowFor(windows, vm.Label,
+        _previewPopup.ShowFor(windows, label,
             appearance.GetDockColorRGB(), appearance.GetDockBorderRounding(),
             appearance.GetDockTransparencyPercentage() / 100.0, button);
     }

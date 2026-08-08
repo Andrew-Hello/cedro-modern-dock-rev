@@ -2,10 +2,14 @@ using System.Collections.ObjectModel;
 using System.Reflection;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using CedroModernDock.Core.Application;
 using CedroModernDock.Core.Models;
 
 namespace CedroModernDock.ViewModels;
+
+/// <summary>One row in the Settings dock-items list: display label + icon.</summary>
+public sealed record DockItemListEntry(string Label, Bitmap? Icon);
 
 /// <summary>ViewModel for the Settings window. Port of SettingsController.</summary>
 public partial class SettingsViewModel : ViewModelBase
@@ -35,7 +39,7 @@ public partial class SettingsViewModel : ViewModelBase
     private DockHorizontalAnchor _horizontalAnchor = DockHorizontalAnchor.MIDDLE;
     private int _topSpacing, _leftSpacing, _rightSpacing, _bottomSpacing;
 
-    public ObservableCollection<string> ItemLabels { get; } = new();
+    public ObservableCollection<DockItemListEntry> ItemEntries { get; } = new();
     public SupportedLanguage[] Languages => Enum.GetValues<SupportedLanguage>();
     public string[] LanguageNames => Languages.Select(l => l.NativeDisplayName()).ToArray();
     public DockVerticalAnchor[] VerticalAnchors => Enum.GetValues<DockVerticalAnchor>();
@@ -270,7 +274,11 @@ public partial class SettingsViewModel : ViewModelBase
         });
         if (folders.Count == 0) return;
         var path = folders[0].Path.LocalPath;
-        var label = System.IO.Path.GetFileName(path);
+        // GetFileName returns "" for paths ending in a separator (e.g. root
+        // drives); fall back to the raw path so the list never shows a blank row.
+        var label = System.IO.Path.GetFileName(System.IO.Path.TrimEndingDirectorySeparator(path));
+        if (string.IsNullOrWhiteSpace(label))
+            label = path;
         _appServices.IconGateway.CacheFolderIcon(path);
         _appServices.DockService.AddItem(new DockFolderItemModel(label, path));
         RefreshItemLabels();
@@ -297,7 +305,7 @@ public partial class SettingsViewModel : ViewModelBase
 
     public void MoveItemDown()
     {
-        if (SelectedItemIndex < 0 || SelectedItemIndex >= ItemLabels.Count - 1) return;
+        if (SelectedItemIndex < 0 || SelectedItemIndex >= ItemEntries.Count - 1) return;
         _appServices.DockService.SwapItems(SelectedItemIndex, SelectedItemIndex + 1);
         SelectedItemIndex++;
         RefreshItemLabels();
@@ -306,10 +314,35 @@ public partial class SettingsViewModel : ViewModelBase
 
     public void RefreshItemLabels()
     {
-        ItemLabels.Clear();
+        ItemEntries.Clear();
         foreach (var item in _appServices.DockService.GetItems())
-            ItemLabels.Add(_appServices.LocalizationService.DockItemLabel(item));
+        {
+            string label = _appServices.LocalizationService.DockItemLabel(item);
+            ItemEntries.Add(new DockItemListEntry(label, ResolveItemIcon(item)));
+        }
         UpdateButtonStates();
+    }
+
+    private Bitmap? ResolveItemIcon(DockItem item)
+    {
+        if (item is DockSettingsItemModel or DockWindowsModuleItemModel)
+        {
+            var icon = IconLoader.LoadFromAsset(IconLoader.MapResourcePath(item.Path));
+            return icon ?? IconLoader.LoadFromAsset("Assets/icons/folder.png");
+        }
+
+        if (item is DockProgramItemModel programItem)
+        {
+            return IconLoader.LoadFromFile(_appServices.IconGateway.ResolveProgramIcon(programItem.ExecutablePath));
+        }
+
+        if (item is DockFolderItemModel folderItem)
+        {
+            return IconLoader.LoadFromFile(_appServices.IconGateway.ResolveFolderIcon(folderItem.FolderPath))
+                ?? IconLoader.LoadFromAsset("Assets/icons/folder.png");
+        }
+
+        return null;
     }
 
     private void UpdateButtonStates()
@@ -318,7 +351,7 @@ public partial class SettingsViewModel : ViewModelBase
         CanRemove = SelectedItemIndex >= 0 && SelectedItemIndex < items.Count
             && items[SelectedItemIndex] is not DockSettingsItemModel;
         CanMoveUp = SelectedItemIndex > 0;
-        CanMoveDown = SelectedItemIndex >= 0 && SelectedItemIndex < ItemLabels.Count - 1;
+        CanMoveDown = SelectedItemIndex >= 0 && SelectedItemIndex < ItemEntries.Count - 1;
         OnPropertyChanged(nameof(CanRemove));
         OnPropertyChanged(nameof(CanMoveUp));
         OnPropertyChanged(nameof(CanMoveDown));

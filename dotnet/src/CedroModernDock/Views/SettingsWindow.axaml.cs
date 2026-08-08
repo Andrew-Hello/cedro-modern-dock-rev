@@ -50,10 +50,15 @@ public partial class SettingsWindow : Window
     private async void OnAddProgram(object? sender, RoutedEventArgs e) => await Vm?.AddProgramAsync(this)!;
     private async void OnAddFolder(object? sender, RoutedEventArgs e) => await Vm?.AddFolderAsync(this)!;
 
-    private void OnAddModule(object? sender, RoutedEventArgs e)
+    private async void OnAddModule(object? sender, RoutedEventArgs e)
     {
         if (_appServices != null && _dockRefreshAction != null)
-            AddWindowsModulesWindow.Open(_appServices, _dockRefreshAction, this);
+        {
+            await AddWindowsModulesWindow.Open(_appServices, _dockRefreshAction, this);
+            // Refresh the dock-items list after the modal closes: adding a
+            // module must show up immediately, not only after reopening.
+            Vm?.RefreshItemLabels();
+        }
     }
 
     private void OnRemove(object? sender, RoutedEventArgs e) => Vm?.RemoveSelected();

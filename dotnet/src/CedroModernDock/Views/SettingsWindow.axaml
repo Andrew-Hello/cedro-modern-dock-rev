@@ -39,6 +39,12 @@
             <Setter Property="Background" Value="#007ACC"/>
             <Setter Property="Foreground" Value="White"/>
         </Style>
+        <!-- The Fluent theme draws a 2px accent-colored pipe under the selected
+             tab (PART_SelectedPipe). The blue selected background is already the
+             highlight, so suppress the pipe. -->
+        <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
     </Window.Styles>
 
     <ScrollViewer Padding="20">
@@ -57,9 +63,19 @@
                     <StackPanel Orientation="Vertical" Spacing="10" Margin="8">
                         <TextBlock Text="{Binding ItemsTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
                         <TextBlock Text="{Binding ItemsHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
-                        <ListBox ItemsSource="{Binding ItemLabels}" SelectedIndex="{Binding SelectedItemIndex}"
+                        <ListBox ItemsSource="{Binding ItemEntries}" SelectedIndex="{Binding SelectedItemIndex}"
                                  Background="#2D2D2D" Foreground="White" BorderBrush="#444" BorderThickness="1"
-                                 MinHeight="120" MaxHeight="160"/>
+                                 MinHeight="120" MaxHeight="160">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DockItemListEntry">
+                                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="2,2">
+                                        <Image Source="{Binding Icon}" Width="24" Height="24"
+                                               Stretch="Uniform" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
                         <TextBlock Text="{Binding ActionsTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,4,0,0"/>
                         <TextBlock Text="{Binding ActionsHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
                         <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">

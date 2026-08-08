@@ -14,11 +14,11 @@ public partial class AddWindowsModulesWindow : Window
         InitializeComponent();
     }
 
-    public static void Open(AppServices appServices, Action dockRefreshAction, Window owner)
+    public static Task Open(AppServices appServices, Action dockRefreshAction, Window owner)
     {
         var vm = new AddWindowsModulesViewModel(appServices, dockRefreshAction);
         var window = new AddWindowsModulesWindow { DataContext = vm, _viewModel = vm };
-        window.ShowDialog(owner);
+        return window.ShowDialog(owner);
     }
 
     private void OnAddSelected(object? sender, RoutedEventArgs e)

@@ -37,8 +37,19 @@ public partial class SettingsViewModel : ViewModelBase
 
     public ObservableCollection<string> ItemLabels { get; } = new();
     public SupportedLanguage[] Languages => Enum.GetValues<SupportedLanguage>();
+    public string[] LanguageNames => Languages.Select(l => l.NativeDisplayName()).ToArray();
     public DockVerticalAnchor[] VerticalAnchors => Enum.GetValues<DockVerticalAnchor>();
     public DockHorizontalAnchor[] HorizontalAnchors => Enum.GetValues<DockHorizontalAnchor>();
+
+    public int SelectedLanguageIndex
+    {
+        get => Array.IndexOf(Languages, _selectedLanguage);
+        set
+        {
+            if (value < 0 || value >= Languages.Length) return;
+            SelectedLanguage = Languages[value];
+        }
+    }
 
     public int SelectedItemIndex
     {
@@ -68,7 +79,11 @@ public partial class SettingsViewModel : ViewModelBase
     public SupportedLanguage SelectedLanguage
     {
         get => _selectedLanguage;
-        set => SetProperty(ref _selectedLanguage, value);
+        set
+        {
+            if (SetProperty(ref _selectedLanguage, value))
+                OnPropertyChanged(nameof(SelectedLanguageIndex));
+        }
     }
 
     // Localized text properties

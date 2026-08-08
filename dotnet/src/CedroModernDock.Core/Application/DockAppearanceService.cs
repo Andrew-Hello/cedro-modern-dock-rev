@@ -75,4 +75,20 @@ public class DockAppearanceService
         GetDock().VerticalDock = value;
         _dockService.SaveChanges();
     }
+
+    public bool GetTintIcons() => GetDock().TintIcons;
+
+    public void SetTintIcons(bool value)
+    {
+        GetDock().TintIcons = value;
+        _dockService.SaveChanges();
+    }
+
+    public string GetTintColorRGB() => GetDock().TintColorRGB;
+
+    public void SetTintColorRGB(string value)
+    {
+        GetDock().TintColorRGB = value;
+        _dockService.SaveChanges();
+    }
 }

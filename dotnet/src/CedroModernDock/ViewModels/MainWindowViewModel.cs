@@ -126,6 +126,13 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (_appServices == null) return;
         IsVerticalDock = _appServices.AppearanceService.GetVerticalDock();
+        // The tint must be set BEFORE items are created: CreateItemViewModel
+        // tints each icon immediately, and a stale value would make every
+        // pinned item lag one color selection behind.
+        var appearance = _appServices.AppearanceService;
+        IconTinter.ActiveColor = appearance.GetTintIcons()
+            ? ParseRgbColor(appearance.GetTintColorRGB())
+            : null;
         Items.Clear();
         var dock = _appServices.DockService.GetDock();
         var loc = _appServices.LocalizationService;
@@ -152,13 +159,13 @@ public partial class MainWindowViewModel : ViewModelBase
         if (item is DockSettingsItemModel)
         {
             var icon = IconLoader.LoadFromAsset(IconLoader.MapResourcePath(item.Path));
-            return new DockItemViewModel(item, label, LaunchCommand) { Icon = icon };
+            return new DockItemViewModel(item, label, LaunchCommand) { Icon = IconTinter.Apply(icon) };
         }
 
         if (item is DockWindowsModuleItemModel)
         {
             var icon = IconLoader.LoadFromAsset(IconLoader.MapResourcePath(item.Path));
-            return new DockItemViewModel(item, label, LaunchCommand) { Icon = icon };
+            return new DockItemViewModel(item, label, LaunchCommand) { Icon = IconTinter.Apply(icon) };
         }
 
         if (item is DockProgramItemModel programItem)
@@ -166,7 +173,10 @@ public partial class MainWindowViewModel : ViewModelBase
             string? iconPath = _appServices!.IconGateway.ResolveProgramIcon(programItem.ExecutablePath);
             var icon = IconLoader.LoadFromFile(iconPath);
             var itemVm = new DockItemViewModel(item, label, LaunchCommand,
-                showIndicator: true, executablePath: programItem.ExecutablePath) { Icon = icon };
+                showIndicator: true, executablePath: programItem.ExecutablePath)
+            {
+                Icon = IconTinter.Apply(icon)
+            };
 
             // The icon may not be cached yet (first run with a new item). Extract it in the
             // background, then push the resulting bitmap into the ViewModel so the dock
@@ -180,7 +190,7 @@ public partial class MainWindowViewModel : ViewModelBase
                     string? cached = _appServices.IconGateway.ResolveProgramIcon(exe);
                     var loaded = IconLoader.LoadFromFile(cached);
                     if (loaded != null)
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() => itemVm.Icon = loaded);
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() => itemVm.Icon = IconTinter.Apply(loaded));
                 });
             }
 
@@ -196,7 +206,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 _ = Task.Run(() => _appServices.IconGateway.CacheFolderIcon(folderItem.FolderPath));
                 icon = IconLoader.LoadFromAsset("Assets/icons/folder.png");
             }
-            return new DockItemViewModel(item, label, LaunchCommand) { Icon = icon };
+            return new DockItemViewModel(item, label, LaunchCommand) { Icon = IconTinter.Apply(icon) };
         }
 
         return null;
@@ -213,6 +223,12 @@ public partial class MainWindowViewModel : ViewModelBase
         Spacing = appearance.GetSpacingBetweenIcons();
         BorderRounding = appearance.GetDockBorderRounding();
 
+        // Re-tint the persistent running-apps VMs with the current tint
+        // (set in UpdateDockUI before items are created; pinned items are
+        // recreated on every refresh so they are tinted at creation).
+        foreach (var app in RunningApps)
+            app.Icon = IconTinter.Apply(app.OriginalIcon);
+
         string colorRgb = appearance.GetDockColorRGB();
         double transparency = appearance.GetDockTransparencyPercentage() / 100.0;
         byte alpha = (byte)(transparency * 255);
@@ -221,6 +237,15 @@ public partial class MainWindowViewModel : ViewModelBase
         byte g = parts.Length > 1 && byte.TryParse(parts[1], out var gv) ? gv : (byte)0;
         byte b = parts.Length > 2 && byte.TryParse(parts[2], out var bv) ? bv : (byte)0;
         DockBackground = new SolidColorBrush(Color.FromArgb(alpha, r, g, b));
+    }
+
+    private static Color ParseRgbColor(string rgb)
+    {
+        var parts = rgb.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        byte r = parts.Length > 0 && byte.TryParse(parts[0], out var rv) ? rv : (byte)0;
+        byte g = parts.Length > 1 && byte.TryParse(parts[1], out var gv) ? gv : (byte)0;
+        byte b = parts.Length > 2 && byte.TryParse(parts[2], out var bv) ? bv : (byte)0;
+        return Color.FromRgb(r, g, b);
     }
 
     private void ExecuteItem(object? param)
@@ -373,7 +398,8 @@ public partial class MainWindowViewModel : ViewModelBase
         var icon = IconLoader.LoadFromFile(_appServices.IconGateway.ResolveProgramIcon(exe));
         if (icon != null)
         {
-            vm.Icon = icon;
+            vm.OriginalIcon = icon;
+            vm.Icon = IconTinter.Apply(icon);
             return;
         }
         // Not cached yet — extract in the background and push when ready.
@@ -385,7 +411,11 @@ public partial class MainWindowViewModel : ViewModelBase
                 string? cached = _appServices.IconGateway.ResolveProgramIcon(exe);
                 var loaded = IconLoader.LoadFromFile(cached);
                 if (loaded != null)
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() => vm.Icon = loaded);
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        vm.OriginalIcon = loaded;
+                        vm.Icon = IconTinter.Apply(loaded);
+                    });
             }
             catch { /* best-effort */ }
         });

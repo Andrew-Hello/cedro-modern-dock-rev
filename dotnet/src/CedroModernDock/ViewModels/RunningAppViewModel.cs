@@ -18,12 +18,16 @@ public class RunningAppViewModel : ViewModelBase
     /// <summary>Display label for the tooltip (fallback to executable name).</summary>
     public string Label { get; }
 
-    /// <summary>The icon bitmap to render.</summary>
+    /// <summary>The icon bitmap to render (tinted when the icon tint is enabled).</summary>
     public Bitmap? Icon
     {
         get => _icon;
         set => SetProperty(ref _icon, value);
     }
+
+    /// <summary>The untinted icon bitmap, kept so the tint can be re-applied
+    /// when the tint color or toggle changes (these VMs persist between refreshes).</summary>
+    public Bitmap? OriginalIcon { get; set; }
 
     /// <summary>True while the app has at least one open window.</summary>
     public bool IsRunning

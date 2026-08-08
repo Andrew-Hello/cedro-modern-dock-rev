@@ -148,6 +148,38 @@
                             <TextBlock Text="{Binding SpacingHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
                             <Slider Minimum="0" Maximum="20" Value="{Binding IconSpacing}" Margin="0,8,0,0"/>
                         </StackPanel>
+                        <StackPanel Orientation="Vertical" Spacing="4">
+                            <CheckBox Content="{Binding TintIconsTitle}" IsChecked="{Binding TintIcons}" Foreground="#CCCCCC"/>
+                            <StackPanel Orientation="Vertical" Spacing="4" IsVisible="{Binding TintIcons}">
+                                <TextBlock Text="{Binding TintColorHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                                <ItemsControl ItemsSource="{Binding PresetColors}" Margin="0,8,0,0">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="med:IBrush">
+                                            <Border Width="32" Height="32" Margin="0,0,8,8" CornerRadius="6"
+                                                    Background="{Binding}" BorderBrush="#666" BorderThickness="1"
+                                                    PointerPressed="OnTintPresetColorPressed">
+                                                <Border.Styles>
+                                                    <Style Selector="Border:pointerover">
+                                                        <Setter Property="BorderBrush" Value="White"/>
+                                                    </Style>
+                                                </Border.Styles>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
+                                    <Border Width="48" Height="32" CornerRadius="6" BorderBrush="#666" BorderThickness="1"
+                                            Background="{Binding TintColorBrush}"/>
+                                    <Button Content="Custom..." Click="OnCustomTintColor" Background="#007ACC" Foreground="White"
+                                            BorderBrush="Transparent" Padding="14,6" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
                     </StackPanel>
                 </TabItem>
                 <!-- more tabs below -->

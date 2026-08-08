@@ -32,6 +32,8 @@ public partial class SettingsViewModel : ViewModelBase
     private int _transparency;
     private int _borderRounding;
     private Color _dockColor = Colors.Black;
+    private bool _tintIcons;
+    private Color _tintColor = Color.FromRgb(0, 80, 140); // 7th preset by default
 
     // Positioning
     private bool _isStaticMode = true;
@@ -86,6 +88,11 @@ public partial class SettingsViewModel : ViewModelBase
     public Color DockColor { get => _dockColor; set => SetProperty(ref _dockColor, value); }
     public IBrush DockColorBrush => new SolidColorBrush(DockColor);
 
+    /// <summary>Enables the iOS-style color tint over all dock icons.</summary>
+    public bool TintIcons { get => _tintIcons; set => SetProperty(ref _tintIcons, value); }
+    public Color TintColor { get => _tintColor; set => SetProperty(ref _tintColor, value); }
+    public IBrush TintColorBrush => new SolidColorBrush(TintColor);
+
     public bool IsStaticMode { get => _isStaticMode; set => SetProperty(ref _isStaticMode, value); }
     public DockVerticalAnchor VerticalAnchor { get => _verticalAnchor; set => SetProperty(ref _verticalAnchor, value); }
     public DockHorizontalAnchor HorizontalAnchor { get => _horizontalAnchor; set => SetProperty(ref _horizontalAnchor, value); }
@@ -134,6 +141,8 @@ public partial class SettingsViewModel : ViewModelBase
     public string IconSizeHelper => T("settings.iconsCustomization.size.helper");
     public string SpacingTitle => T("settings.iconsCustomization.spacing.title");
     public string SpacingHelper => T("settings.iconsCustomization.spacing.helper");
+    public string TintIconsTitle => T("settings.iconsCustomization.tint.title");
+    public string TintColorHelper => T("settings.iconsCustomization.tint.helper");
     public string TransparencyTitle => T("settings.dockCustomization.transparency.title");
     public string TransparencyHelper => T("settings.dockCustomization.transparency.helper");
     public string RoundingTitle => T("settings.dockCustomization.rounding.title");
@@ -201,6 +210,8 @@ public partial class SettingsViewModel : ViewModelBase
         Transparency = app.GetDockTransparencyPercentage();
         BorderRounding = app.GetDockBorderRounding();
         DockColor = ParseRgbColor(app.GetDockColorRGB());
+        TintIcons = app.GetTintIcons();
+        TintColor = ParseRgbColor(app.GetTintColorRGB());
 
         var pos = _appServices.PositioningService;
         IsStaticMode = pos.GetPositioningMode() == DockPositioningMode.STATIC;
@@ -232,6 +243,8 @@ public partial class SettingsViewModel : ViewModelBase
             case nameof(Transparency): OnTransparencyChanged(); break;
             case nameof(BorderRounding): OnBorderRoundingChanged(); break;
             case nameof(DockColor): OnDockColorChanged(); OnPropertyChanged(nameof(DockColorBrush)); break;
+            case nameof(TintIcons): OnTintIconsChanged(); break;
+            case nameof(TintColor): OnTintColorChanged(); OnPropertyChanged(nameof(TintColorBrush)); break;
             case nameof(SelectedLanguage): OnLanguageChanged(SelectedLanguage); break;
             case nameof(IsAutoStartEnabled): OnAutoStartChanged(); break;
             case nameof(ShowUnpinnedRunningApps): OnShowUnpinnedRunningAppsChanged(); break;
@@ -265,6 +278,8 @@ public partial class SettingsViewModel : ViewModelBase
     public void OnTransparencyChanged() { _appServices.AppearanceService.SetDockTransparencyPercentage(Transparency); _dockRefreshAction(); }
     public void OnBorderRoundingChanged() { _appServices.AppearanceService.SetDockBorderRounding(BorderRounding); _dockRefreshAction(); }
     public void OnDockColorChanged() { _appServices.AppearanceService.SetDockColorRGB(ColorToRgb(DockColor)); _dockRefreshAction(); }
+    public void OnTintIconsChanged() { _appServices.AppearanceService.SetTintIcons(TintIcons); _dockRefreshAction(); }
+    public void OnTintColorChanged() { _appServices.AppearanceService.SetTintColorRGB(ColorToRgb(TintColor)); _dockRefreshAction(); }
     public void OnLanguageChanged(SupportedLanguage lang) { _appServices.LocalizationService.SetLanguage(lang); _dockRefreshAction(); }
 
     public void OnAutoStartChanged()

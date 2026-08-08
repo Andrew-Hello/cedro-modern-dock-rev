@@ -73,6 +73,39 @@ public partial class SettingsWindow : Window
             Vm.DockColor = brush.Color;
     }
 
+    private void OnTintPresetColorPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    {
+        if (sender is Border { DataContext: ISolidColorBrush brush })
+            Vm.TintColor = brush.Color;
+    }
+
+    private void OnCustomTintColor(object? sender, RoutedEventArgs e)
+    {
+        var vm = Vm;
+        var dialog = new Window
+        {
+            Title = vm.TintIconsTitle,
+            Width = 340,
+            Height = 420,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = new Avalonia.Media.SolidColorBrush(Color.Parse("#1E1E1E")),
+            Content = new ColorView
+            {
+                Color = vm.TintColor,
+                Margin = new Thickness(16),
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch
+            }
+        };
+        dialog.Closed += (_, _) =>
+        {
+            if (dialog.Content is ColorView picker)
+                vm.TintColor = picker.Color;
+        };
+        dialog.ShowDialog(this);
+    }
+
     private void OnCustomColor(object? sender, RoutedEventArgs e)
     {
         var vm = Vm;

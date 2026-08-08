@@ -81,6 +81,12 @@ public class DockModel
     [JsonPropertyName("verticalDock")]
     public bool VerticalDock { get; set; }
 
+    [JsonPropertyName("tintIcons")]
+    public bool TintIcons { get; set; }
+
+    [JsonPropertyName("tintColorRGB")]
+    public string TintColorRGB { get; set; } = "0, 80, 140";
+
     public void AddItem(DockItem item) => Items.Add(item);
 
     public void RemoveItem(int index) => Items.RemoveAt(index);

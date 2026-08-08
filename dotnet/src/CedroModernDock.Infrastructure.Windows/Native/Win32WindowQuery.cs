@@ -47,6 +47,11 @@ public static class Win32WindowQuery
         if (DwmThumbnailInterop.IsCloaked(hWnd))
             return false;
 
+        // Skip the desktop window ("Program Manager", class Progman) and other
+        // explorer-owned shell surfaces that never appear in the real taskbar.
+        if (IsProgman(hWnd))
+            return false;
+
         int exStyle = User32.GetWindowLongPtr(hWnd, Win32Constants.GWL_EXSTYLE).ToInt32();
         if ((exStyle & Win32Constants.WS_EX_TOOLWINDOW) != 0)
             return false;
@@ -118,6 +123,17 @@ public static class Win32WindowQuery
             if (string.IsNullOrEmpty(title))
                 return true;
 
+            // Skip the desktop window ("Program Manager", class Progman): it belongs
+            // to explorer.exe but must never be listed as an open window.
+            if (IsProgman(hWnd))
+                return true;
+
+            // Skip tool windows: they never appear in the taskbar, and the dock's
+            // own windows (the dock bar and the preview popup) are tool windows.
+            int exStyle = User32.GetWindowLongPtr(hWnd, Win32Constants.GWL_EXSTYLE).ToInt32();
+            if ((exStyle & Win32Constants.WS_EX_TOOLWINDOW) != 0)
+                return true;
+
             if (IsWindowFromExecutable(hWnd, targetPath))
                 windows.Add(new WindowInfo(hWnd, title));
 
@@ -125,6 +141,14 @@ public static class Win32WindowQuery
         }, IntPtr.Zero);
 
         return windows;
+    }
+
+    private static bool IsProgman(IntPtr hWnd)
+    {
+        var classNameBuilder = new StringBuilder(256);
+        User32.GetClassName(hWnd, classNameBuilder, 256);
+        return string.Equals(classNameBuilder.ToString().Trim(),
+            "Progman", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Restores the window if minimized and brings it to the foreground.</summary>

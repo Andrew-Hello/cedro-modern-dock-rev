@@ -59,4 +59,12 @@ public class DockAppearanceService
         DockModel dock = GetDock();
         return new DockTheme(dock.DockColorRGB, dock.DockTransparency, dock.DockBorderRounding);
     }
+
+    public bool GetShowUnpinnedRunningApps() => GetDock().ShowUnpinnedRunningApps;
+
+    public void SetShowUnpinnedRunningApps(bool value)
+    {
+        GetDock().ShowUnpinnedRunningApps = value;
+        _dockService.SaveChanges();
+    }
 }

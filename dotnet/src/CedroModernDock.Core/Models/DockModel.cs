@@ -75,6 +75,9 @@ public class DockModel
     [JsonPropertyName("language")]
     public SupportedLanguage Language { get; set; } = SupportedLanguage.EN_US;
 
+    [JsonPropertyName("showUnpinnedRunningApps")]
+    public bool ShowUnpinnedRunningApps { get; set; } = true;
+
     public void AddItem(DockItem item) => Items.Add(item);
 
     public void RemoveItem(int index) => Items.RemoveAt(index);

@@ -26,6 +26,15 @@
         <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFillPointerOver" Color="#1E6BA6"/>
         <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedStrokePressed" Color="#003A63"/>
         <SolidColorBrush x:Key="RadioButtonOuterEllipseCheckedFillPressed" Color="#003A63"/>
+        <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeChecked" Color="#00508C"/>
+        <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeCheckedPointerOver" Color="#1E6BA6"/>
+        <SolidColorBrush x:Key="CheckBoxCheckBackgroundStrokeCheckedPressed" Color="#003A63"/>
+        <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillChecked" Color="#00508C"/>
+        <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillCheckedPointerOver" Color="#1E6BA6"/>
+        <SolidColorBrush x:Key="CheckBoxCheckBackgroundFillCheckedPressed" Color="#003A63"/>
+        <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundChecked" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPointerOver" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundCheckedPressed" Color="#FFFFFF"/>
     </Window.Resources>
 
     <Window.Styles>
@@ -233,6 +242,8 @@
                         <TextBlock Text="{Binding ContactText}" Foreground="#CCCCCC"/>
                         <TextBlock Text="{Binding OpenSourceText}" Foreground="#CCCCCC" FontWeight="SemiBold" Margin="0,8,0,0"/>
                         <CheckBox Content="Start with Windows" IsChecked="{Binding IsAutoStartEnabled}" Foreground="#CCCCCC" Margin="0,8,0,0"/>
+                        <CheckBox Content="Show running programs that aren't pinned on the Dock"
+                                  IsChecked="{Binding ShowUnpinnedRunningApps}" Foreground="#CCCCCC" Margin="0,8,0,0"/>
                         <Button Content="{Binding AcknowledgementsText}" Click="OnAcknowledgements"
                                 Background="#007ACC" Foreground="White" BorderBrush="Transparent"
                                 Padding="16,8" HorizontalAlignment="Left" Margin="0,8,0,0"/>

@@ -167,6 +167,13 @@ public partial class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _isAutoStartEnabled, value);
     }
 
+    private bool _showUnpinnedRunningApps = true;
+    public bool ShowUnpinnedRunningApps
+    {
+        get => _showUnpinnedRunningApps;
+        set => SetProperty(ref _showUnpinnedRunningApps, value);
+    }
+
     public SettingsViewModel(AppServices appServices, Action dockRefreshAction,
         Action<DockPositioningMode> positioningModeChangeAction)
     {
@@ -200,6 +207,7 @@ public partial class SettingsViewModel : ViewModelBase
         RefreshItemLabels();
         SelectedLanguage = _appServices.LocalizationService.GetCurrentLanguage();
         IsAutoStartEnabled = Infrastructure.Windows.Adapters.AutoStartHelper.IsAutoStartEnabled();
+        ShowUnpinnedRunningApps = app.GetShowUnpinnedRunningApps();
         _isInitialized = true;
     }
 
@@ -218,6 +226,7 @@ public partial class SettingsViewModel : ViewModelBase
             case nameof(DockColor): OnDockColorChanged(); OnPropertyChanged(nameof(DockColorBrush)); break;
             case nameof(SelectedLanguage): OnLanguageChanged(SelectedLanguage); break;
             case nameof(IsAutoStartEnabled): OnAutoStartChanged(); break;
+            case nameof(ShowUnpinnedRunningApps): OnShowUnpinnedRunningAppsChanged(); break;
             case nameof(IsStaticMode): OnPositioningModeChanged(); break;
             case nameof(VerticalAnchor): OnVerticalAnchorChanged(); break;
             case nameof(HorizontalAnchor): OnHorizontalAnchorChanged(); break;
@@ -255,6 +264,12 @@ public partial class SettingsViewModel : ViewModelBase
             Infrastructure.Windows.Adapters.AutoStartHelper.EnableAutoStart();
         else
             Infrastructure.Windows.Adapters.AutoStartHelper.DisableAutoStart();
+    }
+
+    public void OnShowUnpinnedRunningAppsChanged()
+    {
+        _appServices.AppearanceService.SetShowUnpinnedRunningApps(ShowUnpinnedRunningApps);
+        _dockRefreshAction();
     }
     public void OnPositioningModeChanged()
     {

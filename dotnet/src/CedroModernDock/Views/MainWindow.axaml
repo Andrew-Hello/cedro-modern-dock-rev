@@ -100,7 +100,7 @@
 
             <!-- Separator between pinned items and running apps -->
             <Image Source="/Assets/icons/open-softwares-separator-1.png"
-                   Width="9" Height="{Binding IconsSize}"
+                   Width="14" Height="{Binding IconsSize}"
                    Stretch="Uniform"
                    VerticalAlignment="Center"
                    Margin="4,0"

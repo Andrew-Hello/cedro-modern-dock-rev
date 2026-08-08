@@ -236,6 +236,23 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (_appServices == null) return;
 
+        // Feature toggle: only show unpinned running apps when enabled.
+        if (!_appServices.AppearanceService.GetShowUnpinnedRunningApps())
+        {
+            if (RunningApps.Count > 0)
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    RunningApps.Clear();
+                    _runningAppsByPath.Clear();
+                    HasRunningApps = false;
+                    RepositionAction?.Invoke();
+                    PreviewDismissAction?.Invoke();
+                });
+            }
+            return;
+        }
+
         List<string> pinnedPaths = Items
             .Where(i => i.Item is DockProgramItemModel)
             .Select(i => ((DockProgramItemModel)i.Item).ExecutablePath)

@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using CedroModernDock.Core.Application;
 using CedroModernDock.Core.Models;
 using CedroModernDock.ViewModels;
@@ -65,4 +66,37 @@ public partial class SettingsWindow : Window
     private void OnMoveUp(object? sender, RoutedEventArgs e) => Vm?.MoveItemUp();
     private void OnMoveDown(object? sender, RoutedEventArgs e) => Vm?.MoveItemDown();
     private void OnAcknowledgements(object? sender, RoutedEventArgs e) => AcknowledgementsWindow.Open(this);
+
+    private void OnPresetColorPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    {
+        if (sender is Border { DataContext: ISolidColorBrush brush })
+            Vm.DockColor = brush.Color;
+    }
+
+    private void OnCustomColor(object? sender, RoutedEventArgs e)
+    {
+        var vm = Vm;
+        var dialog = new Window
+        {
+            Title = vm.BgColorTitle,
+            Width = 340,
+            Height = 420,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = new Avalonia.Media.SolidColorBrush(Color.Parse("#1E1E1E")),
+            Content = new ColorView
+            {
+                Color = vm.DockColor,
+                Margin = new Thickness(16),
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch
+            }
+        };
+        dialog.Closed += (_, _) =>
+        {
+            if (dialog.Content is ColorView picker)
+                vm.DockColor = picker.Color;
+        };
+        dialog.ShowDialog(this);
+    }
 }

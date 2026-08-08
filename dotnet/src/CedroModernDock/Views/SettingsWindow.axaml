@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:CedroModernDock.ViewModels"
+        xmlns:med="using:Avalonia.Media"
         x:Class="CedroModernDock.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="{Binding WindowTitle}"
@@ -45,9 +46,26 @@
         <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
             <Setter Property="IsVisible" Value="False"/>
         </Style>
+
+        <!-- The Fluent theme uses overlay (auto-hiding) scrollbars by default: the
+             track is transparent and the thumb collapses to a sliver until hovered.
+             Force them always visible so users can see the content is scrollable. -->
+        <Style Selector="ScrollBar">
+            <Setter Property="AllowAutoHide" Value="False"/>
+        </Style>
+        <Style Selector="ScrollBar /template/ Rectangle#TrackRect">
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+        <Style Selector="ScrollBar /template/ Thumb">
+            <Setter Property="RenderTransform" Value="none"/>
+        </Style>
+        <Style Selector="ScrollBar /template/ RepeatButton">
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
     </Window.Styles>
 
-    <ScrollViewer Padding="20,20,20,30" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <ScrollViewer Padding="20,20,20,30" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                  AllowAutoHide="False">
         <StackPanel Orientation="Vertical" Spacing="12">
             <!-- Header -->
             <TextBlock Text="{Binding PageTitle}" FontSize="22" FontWeight="Bold" Foreground="White"/>
@@ -124,7 +142,34 @@
                         <StackPanel Orientation="Vertical" Spacing="4">
                             <TextBlock Text="{Binding BgColorTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
                             <TextBlock Text="{Binding BgColorHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
-                            <ColorView Color="{Binding DockColor}" Height="300" Margin="0,8,0,0"/>
+                            <!-- Quick-pick presets -->
+                            <ItemsControl ItemsSource="{Binding PresetColors}" Margin="0,8,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="med:IBrush">
+                                        <Border Width="32" Height="32" Margin="0,0,8,8" CornerRadius="6"
+                                                Background="{Binding}" BorderBrush="#666" BorderThickness="1"
+                                                PointerPressed="OnPresetColorPressed">
+                                            <Border.Styles>
+                                                <Style Selector="Border:pointerover">
+                                                    <Setter Property="BorderBrush" Value="White"/>
+                                                </Style>
+                                            </Border.Styles>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <!-- Current color preview + custom picker -->
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
+                                <Border Width="48" Height="32" CornerRadius="6" BorderBrush="#666" BorderThickness="1"
+                                        Background="{Binding DockColorBrush}"/>
+                                <Button Content="Custom..." Click="OnCustomColor" Background="#007ACC" Foreground="White"
+                                        BorderBrush="Transparent" Padding="14,6" VerticalAlignment="Center"/>
+                            </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </TabItem>
@@ -140,19 +185,19 @@
 
                         <!-- Static-only: alignment + screen spacing -->
                         <StackPanel Orientation="Vertical" IsVisible="{Binding IsStaticMode}">
-                            <TextBlock Text="{Binding AlignmentTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,8,0,0"/>
+                            <TextBlock Text="{Binding AlignmentTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,20,0,16"/>
                             <StackPanel Orientation="Horizontal" Spacing="12">
                                 <TextBlock Text="{Binding VerticalText}" VerticalAlignment="Center" Foreground="#CCC"/>
                                 <ComboBox ItemsSource="{Binding VerticalAnchors}" SelectedItem="{Binding VerticalAnchor}" Background="#2D2D2D" Foreground="White" MinWidth="100"/>
                                 <TextBlock Text="{Binding HorizontalText}" VerticalAlignment="Center" Foreground="#CCC"/>
                                 <ComboBox ItemsSource="{Binding HorizontalAnchors}" SelectedItem="{Binding HorizontalAnchor}" Background="#2D2D2D" Foreground="White" MinWidth="100"/>
                             </StackPanel>
-                            <TextBlock Text="{Binding ScreenSpacingTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,8,0,0"/>
-                            <StackPanel Orientation="Vertical" Spacing="6">
-                                <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding TopSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding TopSpacing}" Width="320"/></StackPanel>
-                                <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding LeftSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding LeftSpacing}" Width="320"/></StackPanel>
-                                <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding RightSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding RightSpacing}" Width="320"/></StackPanel>
-                                <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding BottomSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding BottomSpacing}" Width="320"/></StackPanel>
+                            <TextBlock Text="{Binding ScreenSpacingTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,40,0,0"/>
+                            <StackPanel Orientation="Vertical" Spacing="6" Margin="0,0,0,80">
+                                <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding TopSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding TopSpacing}" Width="224"/></StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding LeftSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding LeftSpacing}" Width="224"/></StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding RightSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding RightSpacing}" Width="224"/></StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Text="{Binding BottomSpacingLabel}" Width="50" Foreground="#CCC" VerticalAlignment="Center"/><Slider Minimum="0" Maximum="100" Value="{Binding BottomSpacing}" Width="224"/></StackPanel>
                             </StackPanel>
                         </StackPanel>
 

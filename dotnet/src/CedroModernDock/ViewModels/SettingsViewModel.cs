@@ -65,7 +65,26 @@ public partial class SettingsViewModel : ViewModelBase
     public int IconSpacing { get => _iconSpacing; set => SetProperty(ref _iconSpacing, value); }
     public int Transparency { get => _transparency; set => SetProperty(ref _transparency, value); }
     public int BorderRounding { get => _borderRounding; set => SetProperty(ref _borderRounding, value); }
+
+    /// <summary>Quick-pick preset colors for the dock background.</summary>
+    public IReadOnlyList<IBrush> PresetColors { get; } = new[]
+    {
+        new SolidColorBrush(Color.FromRgb(0, 0, 0)),      // black
+        new SolidColorBrush(Color.FromRgb(30, 30, 30)),   // dark gray
+        new SolidColorBrush(Color.FromRgb(60, 60, 60)),   // gray
+        new SolidColorBrush(Color.FromRgb(120, 120, 120)),// light gray
+        new SolidColorBrush(Color.FromRgb(255, 255, 255)),// white
+        new SolidColorBrush(Color.FromRgb(20, 50, 90)),   // navy
+        new SolidColorBrush(Color.FromRgb(0, 80, 140)),   // blue
+        new SolidColorBrush(Color.FromRgb(0, 100, 80)),   // teal
+        new SolidColorBrush(Color.FromRgb(60, 90, 20)),   // olive
+        new SolidColorBrush(Color.FromRgb(120, 70, 0)),   // brown
+        new SolidColorBrush(Color.FromRgb(140, 30, 40)),  // dark red
+        new SolidColorBrush(Color.FromRgb(90, 40, 90))    // purple
+    };
+
     public Color DockColor { get => _dockColor; set => SetProperty(ref _dockColor, value); }
+    public IBrush DockColorBrush => new SolidColorBrush(DockColor);
 
     public bool IsStaticMode { get => _isStaticMode; set => SetProperty(ref _isStaticMode, value); }
     public DockVerticalAnchor VerticalAnchor { get => _verticalAnchor; set => SetProperty(ref _verticalAnchor, value); }
@@ -196,7 +215,7 @@ public partial class SettingsViewModel : ViewModelBase
             case nameof(IconSpacing): OnIconSpacingChanged(); break;
             case nameof(Transparency): OnTransparencyChanged(); break;
             case nameof(BorderRounding): OnBorderRoundingChanged(); break;
-            case nameof(DockColor): OnDockColorChanged(); break;
+            case nameof(DockColor): OnDockColorChanged(); OnPropertyChanged(nameof(DockColorBrush)); break;
             case nameof(SelectedLanguage): OnLanguageChanged(SelectedLanguage); break;
             case nameof(IsAutoStartEnabled): OnAutoStartChanged(); break;
             case nameof(IsStaticMode): OnPositioningModeChanged(); break;

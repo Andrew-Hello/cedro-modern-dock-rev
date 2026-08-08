@@ -33,6 +33,13 @@ public static class Win32Constants
     public const uint SWP_SHOWWINDOW = 0x0040;
     public static readonly IntPtr HWND_TOPMOST = new(-1);
 
+    // SendMessageTimeout flags
+    public const uint SMTO_ABORTIFHUNG = 0x0002;
+
+    // Undocumented message that makes Progman create the WorkerW hosting the
+    // desktop icons (the standard trick used by desktop widgets).
+    public const uint WM_PROGMAN_CREATE_DESKTOP = 0x052C;
+
     // Window messages
     public const int WM_SYSCOMMAND = 0x0112;
     public const int WM_SIZE = 0x0005;
@@ -93,6 +100,20 @@ public static class User32
 {
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool EnumWindows(EnumWindowsProc enumProc, IntPtr lParam);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern IntPtr FindWindow(string? lpClassName, string? lpWindowName);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern IntPtr FindWindowEx(
+        IntPtr hWndParent, IntPtr hWndChildAfter, string? lpszClass, string? lpszWindow);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr SendMessageTimeout(
+        IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern IntPtr GetWindow(IntPtr hWnd, int uCmd);

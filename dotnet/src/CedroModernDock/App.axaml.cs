@@ -36,12 +36,12 @@ public partial class App : Application
             // Keep the app alive via tray icon — the window is never closed, only hidden.
             _desktop = desktop;
 
-            // Wire tray icon events (Avalonia TrayIcon events can't be set via XAML string attributes).
-            WireTrayIcon();
-
             // Composition root — wire concrete Windows adapters into the application services.
             var appServices = CreateServices();
             _appServices = appServices;
+
+            // Wire tray icon events (Avalonia TrayIcon events can't be set via XAML string attributes).
+            WireTrayIcon(appServices.LocalizationService);
 
             var viewModel = new MainWindowViewModel(appServices);
             _mainViewModel = viewModel;
@@ -57,7 +57,7 @@ public partial class App : Application
 
     private static MemoryStream? _trayIconStream;
 
-    private void WireTrayIcon()
+    private void WireTrayIcon(LocalizationService loc)
     {
         // Resolve the embedded Avalonia asset via AssetLoader.Open() with an
         // avares:// URI (same pattern as IconLoader.LoadFromAsset).  WindowIcon(string)
@@ -80,8 +80,8 @@ public partial class App : Application
             Menu = new NativeMenu()
         };
 
-        var settingsItem = new NativeMenuItem { Header = "Open Settings" };
-        var exitItem = new NativeMenuItem { Header = "Exit" };
+        var settingsItem = new NativeMenuItem { Header = loc.Text("tray.openSettings") };
+        var exitItem = new NativeMenuItem { Header = loc.Text("tray.exit") };
 
         // In Avalonia 11.3, NativeMenuItem uses Command property for click handling.
         settingsItem.Command = new ViewModels.RelayCommand(_ => OpenSettingsFromTray());

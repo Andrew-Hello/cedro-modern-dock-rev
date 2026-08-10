@@ -23,4 +23,6 @@ public class WindowPreviewService
         _windowQueryGateway.FindTaskbarWindows();
 
     public void Activate(WindowInfo windowInfo) => _windowQueryGateway.Activate(windowInfo);
+
+    public void Close(WindowInfo windowInfo) => _windowQueryGateway.Close(windowInfo);
 }

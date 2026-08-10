@@ -12,6 +12,7 @@ public static class Win32Constants
 {
     // Window style indices
     public const int GWL_EXSTYLE = -20;
+    public const int GWLP_USERDATA = -21;
 
     // Extended window styles
     public const int WS_EX_TOOLWINDOW = 0x00000080;
@@ -25,6 +26,8 @@ public static class Win32Constants
 
     // ShowWindow commands
     public const int SW_RESTORE = 9;
+    public const int SW_SHOW = 5;
+    public const int SW_HIDE = 0;
 
     // SetWindowPos flags
     public const uint SWP_NOSIZE = 0x0001;
@@ -46,6 +49,13 @@ public static class Win32Constants
     public const int SC_MINIMIZE = 0xF020;
     public const int SIZE_MINIMIZED = 0;
     public const int WM_GETICON = 0x007F;
+    public const int WM_CLOSE = 0x0010;
+    public const int WM_LBUTTONUP = 0x0202;
+    public const int WM_MOUSEMOVE = 0x0200;
+    public const int WM_MOUSELEAVE = 0x02A3;
+    public const int WM_PAINT = 0x000F;
+    public const int WM_ERASEBKGND = 0x0014;
+    public const uint TME_LEAVE = 0x00000002;
 
     // WM_GETICON icon size selectors
     public const IntPtr ICON_BIG = 1;
@@ -78,6 +88,39 @@ public struct POINT
 {
     public int X;
     public int Y;
+}
+
+/// <summary>Native TRACKMOUSEEVENT structure for mouse-leave notifications.</summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct TRACKMOUSEEVENT
+{
+    public uint cbSize;
+    public uint dwFlags;
+    public IntPtr hwndTrack;
+    public uint dwHoverTime;
+}
+
+/// <summary>Native RECT structure.</summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct RECT
+{
+    public int Left;
+    public int Top;
+    public int Right;
+    public int Bottom;
+}
+
+/// <summary>Native PAINTSTRUCT used with BeginPaint/EndPaint.</summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct PAINTSTRUCT
+{
+    public IntPtr hdc;
+    public bool fErase;
+    public RECT rcPaint;
+    public bool fRestore;
+    public bool fIncUpdate;
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 32)]
+    public byte[] rgbReserved;
 }
 
 /// <summary>Callback for window class WndProc.</summary>
@@ -155,6 +198,27 @@ public static class User32
     public static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
 
     [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool TrackMouseEvent(ref TRACKMOUSEEVENT lpEventTrack);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr LoadCursor(IntPtr hInstance, IntPtr lpCursorName);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr SetCursor(IntPtr hCursor);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr BeginPaint(IntPtr hWnd, out PAINTSTRUCT lpPaint);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool EndPaint(IntPtr hWnd, ref PAINTSTRUCT lpPaint);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool InvalidateRect(IntPtr hWnd, IntPtr lpRect, bool bErase);
+
+    [DllImport("user32.dll", SetLastError = true)]
     public static extern bool GetCursorPos(out POINT lpPoint);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -170,6 +234,9 @@ public static class User32
 
     [DllImport("gdi32.dll", SetLastError = true)]
     public static extern IntPtr CreateRoundRectRgn(int x1, int y1, int x2, int y2, int cx, int cy);
+
+    [DllImport("gdi32.dll", SetLastError = true)]
+    public static extern IntPtr CreateEllipticRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect);
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
@@ -247,4 +314,13 @@ internal static class Comctl32
 
     [DllImport("comctl32.dll", SetLastError = true)]
     public static extern IntPtr DefSubclassProc(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam);
+}
+
+internal static class Gdi32
+{
+    [DllImport("gdi32.dll", SetLastError = true)]
+    public static extern IntPtr SelectObject(IntPtr hdc, IntPtr hObject);
+
+    [DllImport("gdi32.dll", SetLastError = true)]
+    public static extern bool DeleteObject(IntPtr hObject);
 }

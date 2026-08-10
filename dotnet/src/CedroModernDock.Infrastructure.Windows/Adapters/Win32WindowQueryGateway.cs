@@ -27,4 +27,9 @@ public class Win32WindowQueryGateway : IWindowQueryGateway
     {
         Win32WindowQuery.ActivateWindow(windowInfo.Handle);
     }
+
+    public void Close(WindowInfo windowInfo)
+    {
+        Win32WindowQuery.CloseWindow(windowInfo.Handle);
+    }
 }

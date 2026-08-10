@@ -36,7 +36,7 @@ public partial class WindowPreviewPopup : Window
     private const double FadeMilliseconds = 120;
     private const double FadeTickMilliseconds = 12;
 
-    private readonly List<(ThumbnailWindow? Thumb, Border Area)> _rows = new();
+    private readonly List<PreviewRow> _rows = new();
     private IReadOnlyList<IntPtr> _sourceHandles = Array.Empty<IntPtr>();
     private string _appLabel = "";
     private string _colorRgb = "0, 0, 0, ";
@@ -53,12 +53,32 @@ public partial class WindowPreviewPopup : Window
     private bool _fadeFinishHide;
     private bool _fadeRunning;
     private IPointer? _pressedPointer;
+    private int _hoveredRowIndex = -1;
+    private readonly DispatcherTimer _closeDebounceTimer = new() { Interval = TimeSpan.FromMilliseconds(80) };
     private readonly DispatcherTimer _fadeTimer = new() { Interval = TimeSpan.FromMilliseconds(FadeTickMilliseconds) };
+
+    /// <summary>
+    /// One popup row: the Avalonia row area, its native thumbnail window and its
+    /// native close button, plus the physical screen rect used to decide when
+    /// the close button should be visible.
+    /// </summary>
+    private sealed class PreviewRow
+    {
+        public Border Row = null!;
+        public Border Area = null!;
+        public ThumbnailWindow? Thumb;
+        public PreviewCloseButtonWindow? Close;
+        public (int X, int Y, int Width, int Height) ScreenRect;
+    }
 
     public WindowPreviewPopup()
     {
         InitializeComponent();
         _fadeTimer.Tick += (_, _) => OnFadeTick();
+        // When the pointer leaves a row (or its close button), the close button
+        // must not vanish while the cursor is still over the thumbnail, so the
+        // hide is deferred and re-checked against the cursor position.
+        _closeDebounceTimer.Tick += (_, _) => UpdateCloseButtons();
         // Position only once the window has a real layout size: before the first
         // Show the content tree is not attached (DesiredSize is 0), and after
         // BuildRows the measure is invalidated, so positioning in ShowFor would
@@ -74,6 +94,9 @@ public partial class WindowPreviewPopup : Window
 
     /// <summary>Invoked with the row's source HWND when a thumbnail row is clicked.</summary>
     public Action<IntPtr>? ThumbnailClicked { get; set; }
+
+    /// <summary>Invoked with the row's source HWND when its close button is clicked.</summary>
+    public Action<IntPtr>? CloseRequested { get; set; }
 
     /// <summary>Invoked when the pointer enters/exits the popup (keeps it open on hover).</summary>
     public Action? PointerEnteredCallback { get; set; }
@@ -168,6 +191,7 @@ public partial class WindowPreviewPopup : Window
                 Child = content
             };
             RowsPanel.Children.Add(row);
+            var previewRow = new PreviewRow { Row = row, Area = thumbArea };
             row.PointerPressed += (_, e) =>
             {
                 // The press implicitly captures the pointer; when the popup
@@ -176,15 +200,25 @@ public partial class WindowPreviewPopup : Window
                 _pressedPointer = e.Pointer;
                 ThumbnailClicked?.Invoke(window.Handle);
             };
-            _rows.Add((null, thumbArea));
+            // Hovering a row reveals its close button; leaving defers to the
+            // cursor-position check in UpdateCloseButtons so the button does not
+            // vanish while the cursor is over the thumbnail or the button itself.
+            row.PointerEntered += (_, _) => ShowCloseButton(previewRow);
+            row.PointerExited += (_, _) => ScheduleCloseButtonCheck();
+            _rows.Add(previewRow);
         }
     }
 
     private void ClearRows()
     {
-        foreach (var (thumb, _) in _rows)
-            thumb?.Dispose();
+        foreach (var row in _rows)
+        {
+            row.Thumb?.Dispose();
+            row.Close?.Dispose();
+        }
+        _rows.Clear();
         RowsPanel.Children.Clear();
+        _hoveredRowIndex = -1;
     }
 
     private void PositionNear(Button anchor)
@@ -327,14 +361,120 @@ public partial class WindowPreviewPopup : Window
             {
                 continue;
             }
-            _rows[i] = (thumb, area);
+            var row = _rows[i];
+            row.Thumb = thumb;
+
+            // The close button overlays the thumbnail's top-right corner. It is
+            // hidden until the row is hovered; clicking it requests closing the
+            // source window. It lives in its own native window so it renders
+            // above the DWM thumbnail (see PreviewCloseButtonWindow).
+            var close = new PreviewCloseButtonWindow(px + pw - PreviewCloseButtonWindow.Size - 2, py + 2);
+            close.Clicked += () => CloseRequested?.Invoke(sourceHwnd);
+            close.PointerExited += () => ScheduleCloseButtonCheck();
+            row.Close = close;
+
+            // Hover keep-alive uses the whole row's screen rect (thumbnail +
+            // title), so the close button stays while the cursor is anywhere
+            // over the row, not just the thumbnail pixels. PointToScreen gives
+            // the physical screen position directly; using Bounds with a
+            // TransformToVisual matrix would double-count the row's offset
+            // within the panel for every row below the first.
+            var topLeft = row.Row.PointToScreen(new Point(0, 0));
+            row.ScreenRect = (
+                topLeft.X,
+                topLeft.Y,
+                (int)Math.Ceiling(row.Row.Bounds.Width * scale),
+                (int)Math.Ceiling(row.Row.Bounds.Height * scale));
         }
+
+        // After a rebuild the pointer may already be over a row (e.g. when a
+        // window was closed and the popup re-shows): sync the close buttons to
+        // the cursor so the hovered row's button is visible immediately.
+        UpdateCloseButtons();
     }
 
     /// <summary>
-    /// True when the physical screen point is over the popup or over any native
-    /// thumbnail window (used to keep the popup open while hovering thumbnails,
-    /// which are separate top-level windows).
+    /// Shows a row's close button and hides every other row's, remembering which
+    /// row is hovered so a delayed check does not re-hide the active one.
+    /// </summary>
+    private void ShowCloseButton(PreviewRow row)
+    {
+        _closeDebounceTimer.Stop();
+        _hoveredRowIndex = _rows.IndexOf(row);
+        UpdateCloseButtons();
+    }
+
+    /// <summary>Defers the close-button visibility check (see UpdateCloseButtons).</summary>
+    private void ScheduleCloseButtonCheck()
+    {
+        _closeDebounceTimer.Stop();
+        _closeDebounceTimer.Start();
+    }
+
+    /// <summary>
+    /// Keeps the hovered row's close button visible while the cursor is over the
+    /// row's thumbnail or its close button, and hides the others. Runs when a row
+    /// is entered or exited (the native thumbnail and close button are separate
+    /// top-level windows, so leaving a row onto either fires PointerExited).
+    /// </summary>
+    private void UpdateCloseButtons()
+    {
+        _closeDebounceTimer.Stop();
+        if (!IsVisible || _rows.Count == 0) return;
+        if (!User32.GetCursorPos(out POINT pt))
+        {
+            HideAllCloseButtons();
+            return;
+        }
+
+        // The pointer can be over the hovered row's thumbnail, over its close
+        // button (a separate native window), or on a different row entirely.
+        int activeRow = -1;
+        if (_hoveredRowIndex >= 0 && _hoveredRowIndex < _rows.Count)
+        {
+            var hovered = _rows[_hoveredRowIndex];
+            if (IsPointOverRow(hovered, pt.X, pt.Y))
+                activeRow = _hoveredRowIndex;
+        }
+        if (activeRow < 0)
+        {
+            for (int i = 0; i < _rows.Count; i++)
+            {
+                if (IsPointOverRow(_rows[i], pt.X, pt.Y))
+                {
+                    activeRow = i;
+                    break;
+                }
+            }
+        }
+        _hoveredRowIndex = activeRow;
+
+        for (int i = 0; i < _rows.Count; i++)
+        {
+            var close = _rows[i].Close;
+            if (close == null) continue;
+            if (i == activeRow) close.Show();
+            else close.Hide();
+        }
+    }
+
+    private bool IsPointOverRow(PreviewRow row, int x, int y)
+    {
+        var (rx, ry, rw, rh) = row.ScreenRect;
+        bool overThumb = x >= rx && x < rx + rw && y >= ry && y < ry + rh;
+        return overThumb || (row.Close != null && row.Close.ContainsPoint(x, y));
+    }
+
+    private void HideAllCloseButtons()
+    {
+        foreach (var row in _rows)
+            row.Close?.Hide();
+    }
+
+    /// <summary>
+    /// True when the physical screen point is over the popup, over any native
+    /// thumbnail window, or over any close button window (used to keep the popup
+    /// open while hovering thumbnails/buttons, which are separate top-level windows).
     /// </summary>
     public bool IsPointOverPopup(int x, int y)
     {
@@ -342,9 +482,11 @@ public partial class WindowPreviewPopup : Window
         int h = (int)(Height * RenderScaling);
         if (x >= Position.X && x < Position.X + w && y >= Position.Y && y < Position.Y + h)
             return true;
-        foreach (var (thumb, _) in _rows)
+        foreach (var row in _rows)
         {
-            if (thumb != null && thumb.ContainsPoint(x, y))
+            if (row.Thumb != null && row.Thumb.ContainsPoint(x, y))
+                return true;
+            if (row.Close != null && row.Close.ContainsPoint(x, y))
                 return true;
         }
         return false;
@@ -450,8 +592,8 @@ public partial class WindowPreviewPopup : Window
     {
         Opacity = value;
         byte alpha = (byte)Math.Clamp(value * 255, 0, 255);
-        foreach (var (thumb, _) in _rows)
-            thumb?.SetOpacity(alpha);
+        foreach (var row in _rows)
+            row.Thumb?.SetOpacity(alpha);
     }
 
     private void FinishHide()

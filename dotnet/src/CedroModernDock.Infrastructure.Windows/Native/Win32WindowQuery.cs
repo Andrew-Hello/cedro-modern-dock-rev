@@ -193,6 +193,17 @@ public static class Win32WindowQuery
         User32.SetForegroundWindow(hwnd);
     }
 
+    /// <summary>
+    /// Asks the window to close by posting WM_CLOSE (the same message the
+    /// taskbar sends), giving the app a chance to prompt before closing.
+    /// </summary>
+    public static void CloseWindow(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero)
+            return;
+        User32.PostMessage(hwnd, (uint)Win32Constants.WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+    }
+
     private static bool IsWindowFromExecutable(IntPtr hWnd, string targetPath)
     {
         User32.GetWindowThreadProcessId(hWnd, out uint pid);

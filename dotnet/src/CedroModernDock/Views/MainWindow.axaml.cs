@@ -21,8 +21,15 @@ public partial class MainWindow : Window
     private AppServices? _appServices;
     private WindowPreviewPopup? _previewPopup;
     private Button? _hoveredButton;
+    private Button? _previewAnchor;
     private int _previewRequestId;
+    // Identity of the item whose preview is currently shown. _hoveredButton is
+    // nulled while the pointer is over the popup, so the close handler cannot
+    // rely on it; these are captured when the preview is requested.
+    private string _previewExecutablePath = "";
+    private string _previewLabel = "";
     private readonly DispatcherTimer _previewHideDebounce = new() { Interval = TimeSpan.FromMilliseconds(80) };
+    private readonly DispatcherTimer _previewCloseRefresh = new() { Interval = TimeSpan.FromMilliseconds(500) };
 
     public MainWindow()
     {
@@ -37,6 +44,13 @@ public partial class MainWindow : Window
                 _previewHideDebounce.Start();
             else
                 HidePreview();
+        };
+        // After a close request the window may take a moment to disappear (it
+        // can show a save prompt), so the row refresh is deferred until it has.
+        _previewCloseRefresh.Tick += (_, _) =>
+        {
+            _previewCloseRefresh.Stop();
+            RefreshPreviewAfterClose();
         };
     }
 
@@ -121,6 +135,8 @@ public partial class MainWindow : Window
         int requestId = ++_previewRequestId;
         var programItem = item;
         string label = vm.Label;
+        _previewExecutablePath = programItem.ExecutablePath;
+        _previewLabel = label;
 
         Task.Run(() =>
         {
@@ -147,6 +163,8 @@ public partial class MainWindow : Window
         int requestId = ++_previewRequestId;
         string executablePath = vm.ExecutablePath;
         string label = vm.Label;
+        _previewExecutablePath = executablePath;
+        _previewLabel = label;
 
         Task.Run(() =>
         {
@@ -176,12 +194,14 @@ public partial class MainWindow : Window
             return;
         }
         if (_appServices == null) return;
+        _previewAnchor = button;
 
         var appearance = _appServices.AppearanceService;
         if (_previewPopup == null)
         {
             _previewPopup = new WindowPreviewPopup();
             _previewPopup.ThumbnailClicked = hwnd => OnPopupThumbnailClicked(hwnd);
+            _previewPopup.CloseRequested = hwnd => OnPopupCloseRequested(hwnd);
             _previewPopup.PointerEnteredCallback = OnPopupPointerEntered;
             _previewPopup.PointerExitedCallback = OnPopupPointerExited;
         }
@@ -248,6 +268,76 @@ public partial class MainWindow : Window
         _hoveredButton = null;
         if (sourceHwnd != IntPtr.Zero)
             _appServices?.WindowPreviewService.Activate(new WindowInfo(sourceHwnd, ""));
+    }
+
+    /// <summary>
+    /// Close button clicked: ask the source window to close (WM_CLOSE, the same
+    /// message the taskbar sends) and defer a row refresh so the popup reflects
+    /// the window actually disappearing.
+    /// </summary>
+    private void OnPopupCloseRequested(IntPtr sourceHwnd)
+    {
+        if (sourceHwnd == IntPtr.Zero || _appServices == null) return;
+        _appServices.WindowPreviewService.Close(new WindowInfo(sourceHwnd, ""));
+        _previewCloseRefresh.Stop();
+        _previewCloseRefresh.Start();
+    }
+
+    /// <summary>
+    /// Re-queries the shown item's open windows after a close request: if any
+    /// remain, the popup rows are rebuilt without the closed window; if the
+    /// closed window was the last one, the whole popup hides. Runs on the UI
+    /// thread with the source query executed off it.
+    /// </summary>
+    private void RefreshPreviewAfterClose()
+    {
+        if (_appServices == null || _previewPopup == null) return;
+        if (_previewPopup.IsVisible != true) return;
+
+        string executablePath = _previewExecutablePath;
+        if (string.IsNullOrEmpty(executablePath)) return;
+
+        int requestId = ++_previewRequestId;
+        string label = _previewLabel;
+        Task.Run(() =>
+        {
+            List<WindowInfo> windows;
+            try
+            {
+                windows = _appServices.WindowPreviewService.LoadPreview(
+                    new DockProgramItemModel(label, executablePath));
+            }
+            catch (Exception)
+            {
+                windows = new List<WindowInfo>();
+            }
+            Dispatcher.UIThread.Post(() => OnPreviewRefreshed(requestId, label, windows));
+        });
+    }
+
+    private void OnPreviewRefreshed(int requestId, string label, List<WindowInfo> windows)
+    {
+        if (requestId != _previewRequestId || _previewPopup is not { IsVisible: true }) return;
+        if (_previewPopup == null) return;
+        if (windows.Count == 0)
+        {
+            ++_previewRequestId;
+            _previewPopup.HideNow();
+            _hoveredButton = null;
+            return;
+        }
+        if (_appServices == null) return;
+        // Rebuild the popup without the closed window. The pointer is over the
+        // popup, so it stays open; CancelHide guards against an in-flight fade.
+        var anchor = _previewAnchor ?? _hoveredButton;
+        if (anchor == null) return;
+        _previewPopup.CancelHide();
+        var appearance = _appServices.AppearanceService;
+        _previewPopup.ShowFor(windows, label,
+            appearance.GetDockColorRGB(), appearance.GetDockBorderRounding(),
+            appearance.GetDockTransparencyPercentage() / 100.0, anchor,
+            verticalDock: _appServices.AppearanceService.GetVerticalDock(),
+            horizontalAnchor: _appServices.PositioningService.GetHorizontalAnchor());
     }
 
     /// <summary>Allows dragging the borderless dock window (DYNAMIC mode only).</summary>

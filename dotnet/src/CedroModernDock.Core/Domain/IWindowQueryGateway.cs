@@ -12,6 +12,7 @@ public interface IWindowQueryGateway
     List<WindowInfo> FindOpenWindows(string? executablePath);
     List<RunningWindowInfo> FindTaskbarWindows();
     void Activate(WindowInfo windowInfo);
+    void Close(WindowInfo windowInfo);
 }
 
 /// <summary>Minimal info required to activate and label a window.</summary>

@@ -406,8 +406,11 @@ public partial class SettingsViewModel : ViewModelBase
     {
         if (SelectedItemIndex <= 0) return;
         _appServices.DockService.SwapItems(SelectedItemIndex, SelectedItemIndex - 1);
-        SelectedItemIndex--;
+        int newIndex = SelectedItemIndex - 1;
         RefreshItemLabels();
+        // Apply the selection after the rebuild: setting it before
+        // RefreshItemLabels would be wiped by the collection Clear.
+        SelectedItemIndex = newIndex;
         _dockRefreshAction();
     }
 
@@ -415,8 +418,28 @@ public partial class SettingsViewModel : ViewModelBase
     {
         if (SelectedItemIndex < 0 || SelectedItemIndex >= ItemEntries.Count - 1) return;
         _appServices.DockService.SwapItems(SelectedItemIndex, SelectedItemIndex + 1);
-        SelectedItemIndex++;
+        int newIndex = SelectedItemIndex + 1;
         RefreshItemLabels();
+        SelectedItemIndex = newIndex;
+        _dockRefreshAction();
+    }
+
+    /// <summary>
+    /// Moves the item at <paramref name="fromIndex"/> into the gap at
+    /// <paramref name="toIndex"/> (drag-reorder). The target is clamped to the
+    /// list bounds and the selection follows the moved item.
+    /// </summary>
+    public void MoveItem(int fromIndex, int toIndex)
+    {
+        if (fromIndex < 0 || fromIndex >= ItemEntries.Count) return;
+        toIndex = Math.Clamp(toIndex, 0, ItemEntries.Count);
+        if (fromIndex == toIndex) return;
+        _appServices.DockService.MoveItem(fromIndex, toIndex);
+        // DockModel.MoveItem leaves the item at index toIndex - 1 when moving
+        // down (the gap shifts), so mirror that here for the selection.
+        int newIndex = toIndex > fromIndex ? toIndex - 1 : toIndex;
+        RefreshItemLabels();
+        SelectedItemIndex = newIndex;
         _dockRefreshAction();
     }
 

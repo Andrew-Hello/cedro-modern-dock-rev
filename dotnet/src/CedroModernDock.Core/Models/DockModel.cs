@@ -99,6 +99,25 @@ public class DockModel
             (Items[secondItemIdx], Items[firstItemIdx]);
     }
 
+    /// <summary>
+    /// Moves the item at <paramref name="fromIndex"/> into the gap at
+    /// <paramref name="toIndex"/> (0..Count): the item ends up at that final
+    /// position, with the others shifting accordingly. Unlike SwapItems this
+    /// supports arbitrary jumps, which drag-reorder needs.
+    /// </summary>
+    public void MoveItem(int fromIndex, int toIndex)
+    {
+        if (fromIndex < 0 || fromIndex >= Items.Count) return;
+        toIndex = Math.Clamp(toIndex, 0, Items.Count);
+        if (fromIndex == toIndex) return;
+
+        var item = Items[fromIndex];
+        Items.RemoveAt(fromIndex);
+        // After removal the gap index shifts left when moving downwards.
+        if (toIndex > fromIndex) toIndex--;
+        Items.Insert(toIndex, item);
+    }
+
     public void SetDockPosition(double positionX, double positionY)
     {
         DockPositionX = positionX;

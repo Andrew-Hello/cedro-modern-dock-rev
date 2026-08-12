@@ -40,6 +40,12 @@ public class DockService
         SaveChanges();
     }
 
+    public void MoveItem(int fromIndex, int toIndex)
+    {
+        _dock.MoveItem(fromIndex, toIndex);
+        SaveChanges();
+    }
+
     public void SetDockPosition(double positionX, double positionY)
     {
         _dock.SetDockPosition(

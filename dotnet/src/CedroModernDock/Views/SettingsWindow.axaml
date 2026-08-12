@@ -108,19 +108,36 @@
                         <!-- Left: Dock Items list (taller) -->
                         <StackPanel Orientation="Vertical" Spacing="6" Grid.Column="0">
                             <TextBlock Text="{Binding ItemsTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
-                            <ListBox ItemsSource="{Binding ItemEntries}" SelectedIndex="{Binding SelectedItemIndex}"
-                                     Background="#2D2D2D" Foreground="White" BorderBrush="#444" BorderThickness="1"
-                                     MinHeight="220" MaxHeight="290" Margin="0,0,0,10">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:DockItemListEntry">
-                                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,1">
-                                            <Image Source="{Binding Icon}" Width="18" Height="18"
-                                                   Stretch="Uniform" VerticalAlignment="Center"/>
-                                            <TextBlock Text="{Binding Label}" FontSize="12" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
+                            <Grid Margin="0,0,0,10">
+                                <ListBox x:Name="ItemsList" ItemsSource="{Binding ItemEntries}" SelectedIndex="{Binding SelectedItemIndex}"
+                                         Background="#2D2D2D" Foreground="White" BorderBrush="#444" BorderThickness="1"
+                                         MinHeight="220" MaxHeight="290"
+                                         Cursor="SizeAll"
+                                         DragDrop.AllowDrop="True"
+                                         DragDrop.DragOver="OnItemsDragOver"
+                                         DragDrop.DragLeave="OnItemsDragLeave"
+                                         DragDrop.Drop="OnItemsDrop"
+                                         PointerMoved="OnItemsPointerMoved"
+                                         PointerReleased="OnItemsPointerReleased"
+                                         PointerCaptureLost="OnItemsPointerCaptureLost">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:DockItemListEntry">
+                                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,1">
+                                                <Image Source="/Assets/icons/draggable.png" Width="12" Height="12"
+                                                       Stretch="Uniform" VerticalAlignment="Center" Opacity="0.55"/>
+                                                <Image Source="{Binding Icon}" Width="18" Height="18"
+                                                       Stretch="Uniform" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Label}" FontSize="12" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <!-- Insertion indicator: a 2px accent bar shown while a
+                                     drag hovers over the list, positioned at the gap. -->
+                                <Border x:Name="DropIndicator" IsVisible="False" Height="2"
+                                        Background="#007ACC" CornerRadius="1"
+                                        HorizontalAlignment="Stretch" VerticalAlignment="Top"/>
+                            </Grid>
                         </StackPanel>
                         <!-- Right: Actions (stacked buttons) -->
                         <StackPanel Orientation="Vertical" Spacing="8" Grid.Column="1" Margin="16,0,0,0">

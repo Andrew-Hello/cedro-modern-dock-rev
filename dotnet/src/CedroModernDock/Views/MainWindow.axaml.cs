@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -181,6 +182,35 @@ public partial class MainWindow : Window
             }
             Dispatcher.UIThread.Post(() => OnPreviewLoaded(requestId, button, label, windows));
         });
+    }
+
+    /// <summary>
+    /// Clicking an unpinned running app activates its window when it has exactly
+    /// one open window (taskbar-style); with multiple windows nothing happens —
+    /// the preview popup still offers per-window control via hover.
+    /// </summary>
+    private void OnRunningAppClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || _appServices == null) return;
+        if (button.DataContext is not RunningAppViewModel vm) return;
+
+        string executablePath = vm.ExecutablePath;
+        List<WindowInfo> windows;
+        try
+        {
+            windows = _appServices.WindowPreviewService.LoadPreview(
+                new DockProgramItemModel(vm.Label, executablePath));
+        }
+        catch (Exception)
+        {
+            return;
+        }
+        if (windows.Count != 1) return;
+
+        ++_previewRequestId;
+        _previewPopup?.HideNow();
+        _hoveredButton = null;
+        _appServices.WindowPreviewService.Activate(windows[0]);
     }
 
     private void OnPreviewLoaded(int requestId, Button button, string label,

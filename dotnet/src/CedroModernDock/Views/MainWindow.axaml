@@ -132,6 +132,7 @@
                                 Cursor="Hand"
                                 ToolTip.Tip="{Binding Label}"
                                 RenderTransformOrigin="50%, 50%"
+                                Click="OnRunningAppClicked"
                                 PointerEntered="OnRunningAppPointerEntered"
                                 PointerExited="OnItemPointerExited">
 

@@ -396,6 +396,22 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (_appServices == null) return;
         string exe = vm.ExecutablePath;
+
+        // The actual Windows Settings app (SystemSettings.exe) carries no icon
+        // in its EXE and its UWP frame exposes none either, so its dock icon is
+        // hardcoded to the bundled Windows Settings asset.
+        if (string.Equals(System.IO.Path.GetFileName(exe),
+                "SystemSettings.exe", StringComparison.OrdinalIgnoreCase))
+        {
+            var settingsIcon = IconLoader.LoadFromAsset("Assets/icons/windows_settings.png");
+            if (settingsIcon != null)
+            {
+                vm.OriginalIcon = settingsIcon;
+                vm.Icon = IconTinter.Apply(settingsIcon);
+                return;
+            }
+        }
+
         var icon = IconLoader.LoadFromFile(_appServices.IconGateway.ResolveProgramIcon(exe));
         if (icon != null)
         {

@@ -16,6 +16,14 @@ public static class Win32WindowQuery
     /// <summary>Taskbar-visible window with its owning executable path.</summary>
     public sealed record RunningWindowInfo(IntPtr Handle, string Title, string ExecutablePath);
 
+    // For UWP/AppX apps the visible top-level window is an ApplicationFrameHost
+    // frame whose real app exe is found in a child CoreWindow. When the app is
+    // minimized Windows reparents that child away, so the lookup fails and the
+    // entry would flip to ApplicationFrameHost.exe (losing its label and icon).
+    // Cache the resolved app exe per frame HWND so it stays stable across
+    // minimize/restore; entries are pruned when the frame window goes away.
+    private static readonly Dictionary<IntPtr, string> _frameAppExeCache = new();
+
     /// <summary>
     /// Enumerates all visible top-level windows that would appear in the Windows
     /// taskbar, returning each with its owning executable path. Mirrors the
@@ -25,6 +33,13 @@ public static class Win32WindowQuery
     public static List<RunningWindowInfo> GetTaskbarWindows()
     {
         var windows = new List<RunningWindowInfo>();
+
+        // Prune cached UWP frame→app mappings for frames that no longer exist.
+        foreach (var handle in _frameAppExeCache.Keys.ToList())
+        {
+            if (!User32.IsWindow(handle))
+                _frameAppExeCache.Remove(handle);
+        }
 
         User32.EnumWindows((hWnd, _) =>
         {
@@ -79,7 +94,16 @@ public static class Win32WindowQuery
         {
             string? appPath = GetChildProcessExePath(hWnd, executablePath);
             if (!string.IsNullOrEmpty(appPath))
+            {
+                _frameAppExeCache[hWnd] = appPath;
                 executablePath = appPath;
+            }
+            else if (_frameAppExeCache.TryGetValue(hWnd, out string? cached))
+            {
+                // Minimized frames lose their CoreWindow child, so fall back to
+                // the previously resolved app to keep label/icon stable.
+                executablePath = cached;
+            }
         }
 
         info = new RunningWindowInfo(hWnd, title, executablePath);
@@ -166,13 +190,72 @@ public static class Win32WindowQuery
             if ((exStyle & Win32Constants.WS_EX_TOOLWINDOW) != 0)
                 return true;
 
+            // Skip IME helper windows ("Default IME" / "MSCTFIME UI"): they belong
+            // to the same process as the app (e.g. UWP apps like Windows Settings)
+            // but are invisible input plumbing, never app windows to show or open.
+            var className = new StringBuilder(256);
+            User32.GetClassName(hWnd, className, 256);
+            string cls = className.ToString().Trim();
+            if (string.Equals(cls, "IME", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(cls, "MSCTFIME UI", StringComparison.OrdinalIgnoreCase))
+                return true;
+
             if (IsWindowFromExecutable(hWnd, targetPath))
-                windows.Add(new WindowInfo(hWnd, title));
+                windows.Add(new WindowInfo(ResolveOpenWindow(hWnd, title), title));
 
             return true;
         }, IntPtr.Zero);
 
         return windows;
+    }
+
+    /// <summary>
+    /// For UWP/AppX apps the visible top-level window belongs to
+    /// ApplicationFrameHost, while the CoreWindow matching the app's exe is
+    /// cloaked by the shell. A cloaked window cannot be shown or activated, so
+    /// the preview/activation target is resolved to the ApplicationFrameHost
+    /// frame that hosts the same titled window.
+    /// </summary>
+    private static IntPtr ResolveOpenWindow(IntPtr hWnd, string title)
+    {
+        IntPtr frame = FindFrameWithTitle(title);
+        if (frame != IntPtr.Zero)
+            return frame;
+        return hWnd;
+    }
+
+    /// <summary>Finds a visible, non-cloaked ApplicationFrameHost frame with the given title.</summary>
+    private static IntPtr FindFrameWithTitle(string title)
+    {
+        IntPtr result = IntPtr.Zero;
+        if (string.IsNullOrEmpty(title))
+            return result;
+
+        User32.EnumWindows((hWnd, _) =>
+        {
+            if (!User32.IsWindowVisible(hWnd) || DwmThumbnailInterop.IsCloaked(hWnd))
+                return true;
+
+            int exStyle = User32.GetWindowLongPtr(hWnd, Win32Constants.GWL_EXSTYLE).ToInt32();
+            if ((exStyle & Win32Constants.WS_EX_TOOLWINDOW) != 0)
+                return true;
+
+            string? path = GetProcessPath(hWnd);
+            if (!string.Equals(System.IO.Path.GetFileName(path),
+                    "ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            var titleBuilder = new StringBuilder(1024);
+            User32.GetWindowText(hWnd, titleBuilder, 1024);
+            if (string.Equals(titleBuilder.ToString().Trim(), title, StringComparison.OrdinalIgnoreCase))
+            {
+                result = hWnd;
+                return false;
+            }
+            return true;
+        }, IntPtr.Zero);
+
+        return result;
     }
 
     private static bool IsProgman(IntPtr hWnd)

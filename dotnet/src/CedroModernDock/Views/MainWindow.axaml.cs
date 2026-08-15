@@ -31,10 +31,17 @@ public partial class MainWindow : Window
     private string _previewLabel = "";
     private readonly DispatcherTimer _previewHideDebounce = new() { Interval = TimeSpan.FromMilliseconds(80) };
     private readonly DispatcherTimer _previewCloseRefresh = new() { Interval = TimeSpan.FromMilliseconds(500) };
+    private readonly DispatcherTimer _positionPersistTimer = new() { Interval = TimeSpan.FromMilliseconds(200) };
 
     public MainWindow()
     {
         InitializeComponent();
+        PositionChanged += OnDockPositionChanged;
+        _positionPersistTimer.Tick += (_, _) =>
+        {
+            _positionPersistTimer.Stop();
+            PersistDockPosition();
+        };
         // The popup hides only when the pointer is neither over the popup nor
         // over a native thumbnail window (thumbnails are separate top-level
         // windows, so leaving the popup onto a thumbnail fires PointerExited).
@@ -387,6 +394,27 @@ public partial class MainWindow : Window
         BeginMoveDrag(e);
     }
 
+    /// <summary>
+    /// PositionChanged fires for every move — including each WM_MOVE delivered
+    /// while the OS move-drag loop runs. The drag blocks the UI thread, so a
+    /// DispatcherTimer restart here only ticks after the drag ends, persisting
+    /// the final position exactly once instead of on every pixel of the drag.
+    /// </summary>
+    private void OnDockPositionChanged(object? sender, PixelPointEventArgs e)
+    {
+        if (_appServices == null) return;
+        if (!_appServices.PositioningService.IsDynamicPositioning()) return;
+        _positionPersistTimer.Stop();
+        _positionPersistTimer.Start();
+    }
+
+    private void PersistDockPosition()
+    {
+        if (_appServices == null) return;
+        if (!_appServices.PositioningService.IsDynamicPositioning()) return;
+        _appServices.DockService.SetDockPosition(Position.X, Position.Y);
+    }
+
     private void UpdateStatus(string status)
     {
         if (DataContext is MainWindowViewModel vm)
@@ -419,6 +447,8 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        PositionChanged -= OnDockPositionChanged;
+        _positionPersistTimer.Stop();
         HidePreview();
         if (DataContext is MainWindowViewModel vm)
             vm.Shutdown();

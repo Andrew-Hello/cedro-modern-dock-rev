@@ -46,9 +46,11 @@ public class DockModel
     public string DockColorRGB { get; set; } = "0, 0, 0, ";
 
     [JsonPropertyName("dockPositionX")]
+    [JsonInclude]
     public double DockPositionX { get; private set; }
 
     [JsonPropertyName("dockPositionY")]
+    [JsonInclude]
     public double DockPositionY { get; private set; }
 
     [JsonPropertyName("positioningMode")]

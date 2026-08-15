@@ -55,6 +55,23 @@ public class JsonDockRepositoryTest
     }
 
     [Fact]
+    public void SavesAndLoadsDockPosition()
+    {
+        string configPath = Path.Combine(_tempDir, "config.json");
+        var repository = new JsonDockRepository(configPath);
+
+        var model = new DockModel();
+        model.SetDockPosition(718.5, 28.2);
+
+        repository.Save(model);
+        DockModel loadedModel = repository.Load();
+
+        Assert.Equal(718.5, loadedModel.DockPositionX);
+        Assert.Equal(28.2, loadedModel.DockPositionY);
+        CleanupTempDir();
+    }
+
+    [Fact]
     public void LoadsExistingJavaConfigJsonWithoutDataLoss()
     {
         // Uses the real config.json from the original Java project root to prove

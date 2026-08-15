@@ -150,6 +150,13 @@ public partial class App : Application
     {
         var repository = new JsonDockRepository();
         var dockService = new DockService(repository);
+
+        // First run (no config yet, so a default was created): register the app
+        // for auto-start so "Start with Windows" is enabled by default. The
+        // Settings checkbox reads the registry, so this makes it checked.
+        if (repository.WasDefaultCreated)
+            AutoStartHelper.EnableAutoStart();
+
         var screenBoundsProvider = new WindowsScreenBoundsProvider();
 
         return new AppServices(

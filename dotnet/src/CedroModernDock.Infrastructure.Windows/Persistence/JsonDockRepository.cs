@@ -22,6 +22,12 @@ public sealed class JsonDockRepository : IDockRepository
     private readonly string _configFilePath;
     private readonly JsonSerializerOptions _serializerOptions;
 
+    /// <summary>
+    /// True when Load() had to create a fresh default config because none
+    /// existed (first run) or the existing file was corrupt/empty.
+    /// </summary>
+    public bool WasDefaultCreated { get; private set; }
+
     public JsonDockRepository() : this(GetDefaultConfigPath()) { }
 
     public JsonDockRepository(string configFilePath)
@@ -77,6 +83,7 @@ public sealed class JsonDockRepository : IDockRepository
 
     private DockModel CreateAndSaveDefault()
     {
+        WasDefaultCreated = true;
         var model = new DockModel();
         model.LoadDefaultItems();
         Save(model);

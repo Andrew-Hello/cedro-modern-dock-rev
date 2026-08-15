@@ -72,6 +72,21 @@ public class JsonDockRepositoryTest
     }
 
     [Fact]
+    public void FirstRunFlagsDefaultCreationOnlyOnce()
+    {
+        string configPath = Path.Combine(_tempDir, "config.json");
+        var repository = new JsonDockRepository(configPath);
+
+        repository.Load();
+        Assert.True(repository.WasDefaultCreated);
+
+        var repository2 = new JsonDockRepository(configPath);
+        repository2.Load();
+        Assert.False(repository2.WasDefaultCreated);
+        CleanupTempDir();
+    }
+
+    [Fact]
     public void LoadsExistingJavaConfigJsonWithoutDataLoss()
     {
         // Uses the real config.json from the original Java project root to prove

@@ -20,29 +20,34 @@ public class DockItemActionService
         _windowsModuleLauncher = windowsModuleLauncher;
     }
 
-    public void Execute(DockItem item, Action openSettingsAction)
+    /// <summary>
+    /// Executes the dock item action. Returns true when the item was handled
+    /// (or launched), false when a program item could not be launched.
+    /// </summary>
+    public bool Execute(DockItem item, Action openSettingsAction)
     {
         if (item is DockProgramItemModel programItem)
         {
-            _programLauncher.Launch(programItem.ExecutablePath, programItem.Label);
-            return;
+            return _programLauncher.Launch(programItem.ExecutablePath, programItem.Label);
         }
 
         if (item is DockFolderItemModel folderItem)
         {
             _folderLauncher.Launch(folderItem.FolderPath, folderItem.Label);
-            return;
+            return true;
         }
 
         if (item is DockWindowsModuleItemModel windowsModuleItem)
         {
             _windowsModuleLauncher.Launch(windowsModuleItem.Module, windowsModuleItem.Label);
-            return;
+            return true;
         }
 
         if (item is DockSettingsItemModel)
         {
             openSettingsAction();
         }
+
+        return true;
     }
 }

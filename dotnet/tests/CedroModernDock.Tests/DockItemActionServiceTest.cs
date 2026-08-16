@@ -84,7 +84,11 @@ public class DockItemActionServiceTest
 
     private sealed class ProgramLauncherImpl(Action<string, string> fn) : IProgramLauncher
     {
-        public void Launch(string executablePath, string label) => fn(executablePath, label);
+        public bool Launch(string executablePath, string label)
+        {
+            fn(executablePath, label);
+            return true;
+        }
     }
     private sealed class FolderLauncherImpl(Action<string, string> fn) : IFolderLauncher
     {

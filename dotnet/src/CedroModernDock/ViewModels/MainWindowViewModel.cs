@@ -253,7 +253,19 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (param is DockItemViewModel itemVm && _appServices != null)
         {
-            _appServices.ItemActionService.Execute(itemVm.Item, () => OpenSettingsAction?.Invoke());
+            bool launched = _appServices.ItemActionService.Execute(
+                itemVm.Item, () => OpenSettingsAction?.Invoke());
+
+            if (!launched && itemVm.Item is DockProgramItemModel programItem)
+            {
+                var loc = _appServices.LocalizationService;
+                System.Windows.Forms.MessageBox.Show(
+                    loc.Text("dialog.programNotFound.message",
+                        programItem.Label, programItem.ExecutablePath),
+                    loc.Text("dialog.programNotFound.title"),
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Warning);
+            }
         }
     }
 

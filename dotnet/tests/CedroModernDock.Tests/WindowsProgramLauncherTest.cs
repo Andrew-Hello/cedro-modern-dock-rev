@@ -46,6 +46,18 @@ public class WindowsProgramLauncherTest
         CleanupTempDir();
     }
 
+    [Fact]
+    public void LaunchingMissingExecutableDoesNotThrow()
+    {
+        var launcher = new WindowsProgramLauncher();
+        string missing = Path.Combine(_tempDir, "Missing.exe");
+
+        bool launched = launcher.Launch(missing, "Missing");
+
+        Assert.False(launched);
+        CleanupTempDir();
+    }
+
     private void CleanupTempDir()
     {
         try { Directory.Delete(_tempDir, true); } catch { }

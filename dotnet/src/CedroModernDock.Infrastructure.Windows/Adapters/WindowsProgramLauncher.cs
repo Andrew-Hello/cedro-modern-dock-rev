@@ -10,31 +10,42 @@ using CedroModernDock.Core.Domain;
 /// </summary>
 public class WindowsProgramLauncher : IProgramLauncher
 {
-    public void Launch(string executablePath, string label)
+    public bool Launch(string executablePath, string label)
     {
         Debug.WriteLine($"{label} Clicked");
 
         if (string.IsNullOrWhiteSpace(executablePath))
         {
             Debug.WriteLine($"Executable path not defined for: {label}");
-            return;
+            return false;
         }
 
         try
         {
-            ExecuteAndHandleElevation(executablePath, label);
+            return ExecuteAndHandleElevation(executablePath, label);
         }
-        catch (Exception e) when (e is not System.ComponentModel.Win32Exception)
+        catch (Exception e)
         {
+            // A failed launch must never take the dock down: elevation
+            // (error 740) is handled inside; any other failure (missing
+            // file, bad path, invalid exe) is logged and reported as a
+            // failed launch.
             Debug.WriteLine($"Failed to open: {label}");
             Debug.WriteLine($"Path: {executablePath}");
             Debug.WriteLine($"Error: {e.Message}");
+            return false;
         }
     }
 
-    private void ExecuteAndHandleElevation(string path, string label)
+    private bool ExecuteAndHandleElevation(string path, string label)
     {
         var launchCommand = ResolveLaunchCommand(path);
+        if (!File.Exists(launchCommand.ExecutablePath))
+        {
+            Debug.WriteLine($"Executable not found: {launchCommand.ExecutablePath}");
+            return false;
+        }
+
         try
         {
             var startInfo = new ProcessStartInfo
@@ -47,6 +58,7 @@ public class WindowsProgramLauncher : IProgramLauncher
 
             Process.Start(startInfo);
             Debug.WriteLine($"Executing: {label}");
+            return true;
         }
         catch (System.ComponentModel.Win32Exception e)
         {
@@ -62,12 +74,11 @@ public class WindowsProgramLauncher : IProgramLauncher
                     UseShellExecute = false
                 });
                 Debug.WriteLine($"(Elevated) Executing: {label}");
+                return true;
             }
-            else
-            {
-                Debug.WriteLine("Error trying to execute program");
-                throw;
-            }
+
+            Debug.WriteLine("Error trying to execute program");
+            return false;
         }
     }
 

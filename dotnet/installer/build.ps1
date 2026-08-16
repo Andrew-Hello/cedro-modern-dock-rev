@@ -4,8 +4,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$installerDir = Split-Path $PSScriptRoot -Parent
-$solutionDir = Split-Path $installerDir -Parent
+$installerDir = $PSScriptRoot
+$solutionDir = Split-Path $PSScriptRoot -Parent
 
 Write-Host "Publishing CedroModernDock (Release, win-x64, self-contained single-file)..."
 dotnet publish "$solutionDir\src\CedroModernDock\CedroModernDock.csproj" `
@@ -16,8 +16,14 @@ if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed." }
 
 Write-Host "Building MSI $Version..."
 $msi = Join-Path $installerDir "CedroModernDock-$Version-x64.msi"
-wix build "$installerDir\Installer.wxs" -o $msi -arch x64 `
-    -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext -d "ProductVersion=$Version"
-if ($LASTEXITCODE -ne 0) { throw "wix build failed." }
+Push-Location $installerDir
+try {
+    wix build "Installer.wxs" -o $msi -arch x64 `
+        -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext -d "ProductVersion=$Version"
+    if ($LASTEXITCODE -ne 0) { throw "wix build failed." }
+}
+finally {
+    Pop-Location
+}
 
 Write-Host "Built: $msi"

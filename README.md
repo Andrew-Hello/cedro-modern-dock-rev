@@ -1,13 +1,10 @@
-![GitHub contributors](https://img.shields.io/github/contributors/arthurdeka/cedro-modern-dock?style=for-the-badge)
 ![GitHub forks](https://img.shields.io/github/forks/arthurdeka/cedro-modern-dock?style=for-the-badge)
 ![GitHub Repo stars](https://img.shields.io/github/stars/arthurdeka/cedro-modern-dock?style=for-the-badge)
 ![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/arthurdeka/cedro-modern-dock?style=for-the-badge)
 ![GitHub License](https://img.shields.io/github/license/arthurdeka/cedro-modern-dock?style=for-the-badge)
 ![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/TeiuAlligator?style=for-the-badge)
 
-
-<img width="769" height="163" alt="img1" src="https://github.com/user-attachments/assets/3a7cf5f1-a203-4d7b-aa9f-6e0904031eb5" />
-<img width="785" height="270" alt="img3" src="https://github.com/user-attachments/assets/1489345d-4ddc-4482-a074-ca676da8eb28" />
+<img width="1006" height="382" alt="570922610-1489345d-4ddc-4482-a074-ca676da8eb28" src="https://github.com/user-attachments/assets/4ed597cc-a8c4-4d0d-ae3e-cc6fb5514b50" />
 
 
 
@@ -16,20 +13,19 @@
 
 > ## How To Install
 > 1. Go to [Releases](https://github.com/arthurdeka/cedro-modern-dock/releases):
-> 2. Download the latest `CedroSetup.exe` file
+> 2. Download the latest `CedroModernDock-1.2.0-x64.msi` file
 > 3. Execute and install
 <br>
 
-## Features
+## What's new in v1.2
 
-- **Quick Launch Shortcuts:** Add your favorite `.exe` files to the dock for fast access.
-- **Folder Shortcuts:** Pin folders alongside apps and open them directly from the dock.
-- **Built-in Windows Modules:** Add native Windows shortcuts such as **This PC**, **Recycle Bin**, **Control Panel**, and **Settings**.
-- **Appearance Customization:** Adjust icon size, spacing, background color, transparency, and dock corner rounding.
-- **Flexible Positioning:** Choose between a static anchored layout with per-edge spacing or a dynamic draggable dock.
-- **Running App Indicators:** Program shortcuts show a live indicator when matching windows are currently open.
-- **Window Preview Popup:** Hovering a running app can show its open windows, and clicking a preview brings that window to the front.
-- **Desktop-Friendly Behavior:** Includes system tray integration for quick access to settings.
+- **Live window previews:** Hover a running app to see its open windows in real time, click one to bring it forward.
+- **Running apps you haven't pinned:** Apps currently open but not pinned show up on the dock now.
+- **Customize your icons:** iOS-style color tint with 12 presets or pick your own color.
+- **Drag to reorder:** Now you can rearrange your dock shortcuts right in the Settings list by dragging them around.
+- **Vertical dock:** Arrange the dock vertically on either side of the screen.
+- **Updates that keep your setup:** - Upgrading to a new version replaces the app but keeps your shortcuts and settings.
+- **Long-awaited feature:** Now CTRL + D does NOT minimizes the Dock anymore. It remains on the Desktop.
 <br>
 
 ## Supported Languages
@@ -62,7 +58,6 @@
 
 * ![.NET](https://img.shields.io/badge/.NET-9-5122d3?style=for-the-badge&logo=dotnet&logoColor=white)
 * ![Avalonia](https://img.shields.io/badge/Avalonia-11.3-0080ff?style=for-the-badge&logo=avalonia&logoColor=white)
-* ![Windows](https://img.shields.io/badge/Windows-0078d6?style=for-the-badge&logo=windows&logoColor=white)
 <br>
 
 <!-- GETTING STARTED -->

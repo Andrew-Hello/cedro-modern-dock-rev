@@ -11,3 +11,8 @@ obj/
 ## Publish output
 publish/
 artifacts/
+
+## Installer build output
+*.msi
+*.wixpdb
+.wix/

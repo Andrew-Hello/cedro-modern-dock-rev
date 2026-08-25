@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:CedroModernDock.ViewModels"
+        xmlns:conv="using:CedroModernDock.Converters"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="80"
@@ -17,17 +18,21 @@
         SizeToContent="WidthAndHeight"
         PointerPressed="OnPointerPressed">
 
+    <Window.Resources>
+        <conv:DockPaddingConverter x:Key="DockPaddingConverter"/>
+    </Window.Resources>
+
     <Design.DataContext>
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
     <!-- Dock bar: compact rounded background with items.
-         Vertical padding is intentionally small so the bar stays close to
-         icon height; children may overflow visually during hover zoom. -->
+         Vertical padding is user-configurable; DockBackground is used as an
+         appearance-refresh signal so the converter re-reads the saved value. -->
     <Border x:Name="DockBar"
             Background="{Binding DockBackground}"
             CornerRadius="{Binding DockCornerRadius}"
-            Padding="10,4"
+            Padding="{Binding DockBackground, Converter={StaticResource DockPaddingConverter}}"
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             ClipToBounds="False">

@@ -30,6 +30,14 @@ public class DockAppearanceService
         _dockService.SaveChanges();
     }
 
+    public int GetDockVerticalPadding() => Math.Clamp(GetDock().DockVerticalPadding, 0, 20);
+
+    public void SetDockVerticalPadding(int value)
+    {
+        GetDock().DockVerticalPadding = Math.Clamp(value, 0, 20);
+        _dockService.SaveChanges();
+    }
+
     public int GetDockTransparencyPercentage() => (int)(GetDock().DockTransparency * 100);
 
     public void SetDockTransparencyPercentage(int value)

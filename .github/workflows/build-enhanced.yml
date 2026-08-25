@@ -33,3 +33,5 @@ jobs:
           name: CedroModernDock-Enhanced-win-x64
           path: dotnet/src/CedroModernDock/bin/Release/net9.0-windows/
           if-no-files-found: error
+
+# Enhanced window behavior build checkpoint.

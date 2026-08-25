@@ -36,6 +36,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        InitializeEnhancedWindowBehaviorHooks();
         PositionChanged += OnDockPositionChanged;
         _positionPersistTimer.Tick += (_, _) =>
         {

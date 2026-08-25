@@ -172,6 +172,7 @@
                         </StackPanel>
                     </Grid>
                 </TabItem>
+
                 <!-- Tab 2: Icons Customization -->
                 <TabItem Header="{Binding TabIconsCustomization}">
                     <StackPanel Orientation="Vertical" Spacing="16" Margin="16,12">
@@ -219,7 +220,7 @@
                         </StackPanel>
                     </StackPanel>
                 </TabItem>
-                <!-- more tabs below -->
+
                 <!-- Tab 3: Dock Customization -->
                 <TabItem Header="{Binding TabDockCustomization}">
                     <StackPanel Orientation="Vertical" Spacing="16" Margin="16,12">
@@ -232,6 +233,14 @@
                             <TextBlock Text="{Binding RoundingTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
                             <TextBlock Text="{Binding RoundingHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
                             <Slider Minimum="0" Maximum="30" Value="{Binding BorderRounding}" Margin="0,8,0,0"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Vertical" Spacing="4">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="{Binding VerticalPaddingTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
+                                <TextBlock Grid.Column="1" Text="{Binding DockVerticalPadding}" Foreground="#AAAAAA" Margin="12,0,0,0"/>
+                            </Grid>
+                            <TextBlock Text="{Binding VerticalPaddingHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                            <Slider Minimum="0" Maximum="20" Value="{Binding DockVerticalPadding}" Margin="0,8,0,0"/>
                         </StackPanel>
                         <StackPanel Orientation="Vertical" Spacing="4">
                             <TextBlock Text="{Binding BgColorTitle}" FontWeight="SemiBold" Foreground="#CCCCCC"/>
@@ -261,12 +270,13 @@
                             <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
                                 <Border Width="48" Height="32" CornerRadius="6" BorderBrush="#666" BorderThickness="1"
                                         Background="{Binding DockColorBrush}"/>
-                                    <Button Content="{Binding CustomColorText}" Click="OnCustomColor" Background="#007ACC" Foreground="White"
-                                            BorderBrush="Transparent" Padding="14,6" VerticalAlignment="Center"/>
+                                <Button Content="{Binding CustomColorText}" Click="OnCustomColor" Background="#007ACC" Foreground="White"
+                                        BorderBrush="Transparent" Padding="14,6" VerticalAlignment="Center"/>
                             </StackPanel>
                         </StackPanel>
                     </StackPanel>
                 </TabItem>
+
                 <!-- Tab 4: Positioning -->
                 <TabItem Header="{Binding TabDockPositioning}">
                     <StackPanel Orientation="Vertical" Spacing="12" Margin="16,12">
@@ -316,7 +326,7 @@
                         </StackPanel>
                     </StackPanel>
                 </TabItem>
-                <!-- general tab below -->
+
                 <!-- Tab 5: General -->
                 <TabItem Header="{Binding TabGeneral}">
                     <StackPanel Orientation="Vertical" Spacing="8" Margin="16,12">

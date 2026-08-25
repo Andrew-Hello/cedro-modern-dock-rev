@@ -38,6 +38,22 @@ public class DockAppearanceService
         _dockService.SaveChanges();
     }
 
+    public bool GetAlwaysOnTop() => GetDock().AlwaysOnTop;
+
+    public void SetAlwaysOnTop(bool value)
+    {
+        GetDock().AlwaysOnTop = value;
+        _dockService.SaveChanges();
+    }
+
+    public bool GetAutoHideAtScreenEdge() => GetDock().AutoHideAtScreenEdge;
+
+    public void SetAutoHideAtScreenEdge(bool value)
+    {
+        GetDock().AutoHideAtScreenEdge = value;
+        _dockService.SaveChanges();
+    }
+
     public int GetDockTransparencyPercentage() => (int)(GetDock().DockTransparency * 100);
 
     public void SetDockTransparencyPercentage(int value)

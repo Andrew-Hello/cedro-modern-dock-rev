@@ -1,19 +1,17 @@
 namespace CedroModernDock.Infrastructure.Windows.Native;
 
 using System;
-using System.Text;
 
 /// <summary>
 /// Applies dock-specific Win32 window behavior that Avalonia alone cannot provide:
 /// <list type="bullet">
 /// <item><b>WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW</b> — the dock never steals focus
 /// and never appears in the taskbar or Alt-Tab cycle.</item>
-/// <item><b>Desktop attachment</b> — the dock becomes an owned window of the
-/// desktop (the WorkerW hosting the desktop icons), so it sticks to the
-/// desktop: Win+D "Show Desktop" keeps it visible, maximized/normal windows
-/// cover it, and it is never part of the minimize-all cycle.</item>
+/// <item><b>Topmost top-level window</b> — the dock remains above normal application
+/// windows without being parented to the desktop WorkerW. Keeping it top-level is
+/// also important for correct DWM alpha composition over desktop icons.</item>
 /// <item><b>Subclass</b> — defense in depth: intercepts minimize commands
-/// (SC_MINIMIZE, SIZE_MINIMIZED) in case a shell path minimizes it anyway.</item>
+/// (SC_MINIMIZE, SIZE_MINIMIZED) so Win+D does not permanently hide the dock.</item>
 /// </list>
 /// </summary>
 public sealed class DockWindowBehavior : IDisposable
@@ -38,14 +36,14 @@ public sealed class DockWindowBehavior : IDisposable
         }
 
         ApplyExtendedStyles();
-        AttachToDesktop();
+        ApplyTopmost();
 
         // Store the delegate in a field so it is not garbage-collected while
         // the native subclass is active (would cause a crash on next message).
         _subclassProc = new SubclassProc(HandleMessage);
         _subclassed = Comctl32.SetWindowSubclass(_hwnd, _subclassProc, UIntPtr.Zero, IntPtr.Zero);
 
-        _onStatus?.Invoke($"HWND=0x{_hwnd:X} | Subclass={(_subclassed ? "OK" : "FAIL")}");
+        _onStatus?.Invoke($"HWND=0x{_hwnd:X} | Topmost=ON | Subclass={(_subclassed ? "OK" : "FAIL")}");
     }
 
     private void ApplyExtendedStyles()
@@ -53,66 +51,32 @@ public sealed class DockWindowBehavior : IDisposable
         IntPtr exStylePtr = User32.GetWindowLongPtr(_hwnd, Win32Constants.GWL_EXSTYLE);
         int exStyle = exStylePtr.ToInt32();
 
-        exStyle |= Win32Constants.WS_EX_NOACTIVATE | Win32Constants.WS_EX_TOOLWINDOW;
+        exStyle |= Win32Constants.WS_EX_NOACTIVATE |
+                   Win32Constants.WS_EX_TOOLWINDOW |
+                   Win32Constants.WS_EX_TOPMOST;
         exStyle &= ~Win32Constants.WS_EX_APPWINDOW; // remove taskbar entry
 
         User32.SetWindowLongPtr(_hwnd, Win32Constants.GWL_EXSTYLE, new IntPtr(exStyle));
     }
 
     /// <summary>
-    /// Parents the dock to the desktop icons window. The dock stays a popup
-    /// window (screen coordinates and layered transparency are preserved), but
-    /// being owned by the desktop it survives "Show Desktop" and sits behind
-    /// every normal window — exactly like the desktop icons.
+    /// Keeps the dock as an independent top-level popup and places it in the
+    /// topmost band. Do not SetParent() it to Progman/WorkerW: doing so changes
+    /// the DWM composition relationship and can make alpha transparency show
+    /// the wallpaper while hiding Explorer desktop icons underneath.
     /// </summary>
-    private void AttachToDesktop()
+    private void ApplyTopmost()
     {
-        IntPtr desktop = FindDesktopWindow();
-        if (desktop == IntPtr.Zero)
-        {
-            _onStatus?.Invoke("AttachToDesktop: desktop window not found");
-            return;
-        }
+        bool ok = User32.SetWindowPos(
+            _hwnd,
+            Win32Constants.HWND_TOPMOST,
+            0, 0, 0, 0,
+            Win32Constants.SWP_NOMOVE |
+            Win32Constants.SWP_NOSIZE |
+            Win32Constants.SWP_NOACTIVATE |
+            Win32Constants.SWP_SHOWWINDOW);
 
-        User32.SetParent(_hwnd, desktop);
-        _onStatus?.Invoke($"Attached to desktop 0x{desktop:X}");
-    }
-
-    /// <summary>
-    /// Locates the desktop window that hosts the desktop icons: the WorkerW
-    /// containing a SHELLDLL_DefView child (created on demand by Progman).
-    /// Falls back to Progman itself when no such WorkerW exists.
-    /// </summary>
-    private static IntPtr FindDesktopWindow()
-    {
-        IntPtr progman = User32.FindWindow("Progman", null);
-        if (progman == IntPtr.Zero)
-            return IntPtr.Zero;
-
-        // Ask Progman to create the icons WorkerW if it does not exist yet.
-        User32.SendMessageTimeout(progman, Win32Constants.WM_PROGMAN_CREATE_DESKTOP,
-            IntPtr.Zero, IntPtr.Zero, Win32Constants.SMTO_ABORTIFHUNG, 1000, out _);
-
-        IntPtr workerW = FindWorkerWWithIcons();
-        return workerW != IntPtr.Zero ? workerW : progman;
-    }
-
-    private static IntPtr FindWorkerWWithIcons()
-    {
-        IntPtr found = IntPtr.Zero;
-        User32.EnumWindows((hWnd, _) =>
-        {
-            var className = new StringBuilder(256);
-            User32.GetClassName(hWnd, className, className.Capacity);
-            if (className.ToString() == "WorkerW" &&
-                User32.FindWindowEx(hWnd, IntPtr.Zero, "SHELLDLL_DefView", null) != IntPtr.Zero)
-            {
-                found = hWnd;
-                return false;
-            }
-            return true;
-        }, IntPtr.Zero);
-        return found;
+        _onStatus?.Invoke(ok ? "Topmost enabled" : "WARNING: SetWindowPos(HWND_TOPMOST) failed");
     }
 
     private IntPtr HandleMessage(
@@ -120,7 +84,7 @@ public sealed class DockWindowBehavior : IDisposable
         UIntPtr uIdSubclass, IntPtr dwRefData)
     {
         // 1. Block explicit minimize (SC_MINIMIZE) — covers normal "Minimize"
-        //    clicks and Win+D "Show Desktop" (which sends SC_MINIMIZE).
+        //    clicks and some Win+D / Show Desktop paths.
         if (uMsg == Win32Constants.WM_SYSCOMMAND)
         {
             int command = wParam.ToInt32() & 0xFFF0;
@@ -131,11 +95,12 @@ public sealed class DockWindowBehavior : IDisposable
             }
         }
 
-        // 2. Win+D may also minimize windows through other paths. If we receive
-        //    WM_SIZE with SIZE_MINIMIZED, undo it so the dock stays on the desktop.
+        // 2. If another shell path still produces SIZE_MINIMIZED, restore the
+        //    dock immediately and reassert topmost without activating it.
         if (uMsg == Win32Constants.WM_SIZE && wParam.ToInt32() == Win32Constants.SIZE_MINIMIZED)
         {
             User32.ShowWindow(_hwnd, Win32Constants.SW_RESTORE);
+            ApplyTopmost();
             _onStatus?.Invoke("Restored from SIZE_MINIMIZED (Win+D defense)");
         }
 

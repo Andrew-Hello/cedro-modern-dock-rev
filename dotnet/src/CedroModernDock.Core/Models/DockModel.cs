@@ -31,6 +31,9 @@ public class DockModel
         set => _spacingBetweenIcons = value;
     }
 
+    [JsonPropertyName("dockVerticalPadding")]
+    public int DockVerticalPadding { get; set; } = 4;
+
     private double _dockTransparency = 0.3;
     [JsonPropertyName("dockTransparency")]
     public double DockTransparency

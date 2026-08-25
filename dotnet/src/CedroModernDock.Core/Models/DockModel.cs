@@ -34,6 +34,22 @@ public class DockModel
     [JsonPropertyName("dockVerticalPadding")]
     public int DockVerticalPadding { get; set; } = 4;
 
+    /// <summary>
+    /// User preference for keeping the dock in the topmost window band.
+    /// Defaults to true to preserve the enhanced dock behavior for existing users.
+    /// Runtime fullscreen detection may temporarily suppress topmost without
+    /// changing this persisted preference.
+    /// </summary>
+    [JsonPropertyName("alwaysOnTop")]
+    public bool AlwaysOnTop { get; set; } = true;
+
+    /// <summary>
+    /// When enabled, the dock snaps to the selected screen edge and auto-hides,
+    /// leaving only a narrow reveal strip until the pointer touches that edge.
+    /// </summary>
+    [JsonPropertyName("autoHideAtScreenEdge")]
+    public bool AutoHideAtScreenEdge { get; set; }
+
     private double _dockTransparency = 0.3;
     [JsonPropertyName("dockTransparency")]
     public double DockTransparency

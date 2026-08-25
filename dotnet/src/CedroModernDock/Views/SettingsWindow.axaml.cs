@@ -27,6 +27,7 @@ public partial class SettingsWindow : Window
     public SettingsWindow()
     {
         InitializeComponent();
+        InitializeWindowBehaviorSettingsHooks();
         // ListBoxItem marks PointerPressed as handled while it updates the
         // selection, which would skip a normal (bubble) handler on the ListBox.
         // Subscribe with handledEventsToo so the drag gesture still sees presses.

@@ -13,7 +13,11 @@ public partial class SettingsWindow
 
     private void InitializeWindowBehaviorSettingsHooks()
     {
-        Opened += (_, _) => InstallWindowBehaviorSettingsPanel();
+        Opened += (_, _) =>
+        {
+            InstallWindowBehaviorSettingsPanel();
+            InstallConfigBackupSettingsPanel();
+        };
     }
 
     /// <summary>

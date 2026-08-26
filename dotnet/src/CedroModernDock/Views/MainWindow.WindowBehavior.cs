@@ -134,8 +134,19 @@ public partial class MainWindow
         bool requested = _appServices.AppearanceService.GetAutoHideAtScreenEdge();
         bool dynamic = _appServices.PositioningService.IsDynamicPositioning();
 
+        // If the dock is already attached to a side whose independent switch
+        // has just been disabled, release it immediately even if another edge
+        // group remains enabled.
+        if (_edgeAutoHideActive && !IsEdgeAutoHideEnabled(_edgeSide))
+        {
+            if (dynamic)
+                _appServices.AppearanceService.SetDynamicEdgeDockState(false, 0, 0);
+            DeactivateEdgeAutoHide();
+            return;
+        }
+
         // Dynamic mode stays free until the user explicitly drags close enough
-        // to any of the four monitor edges. Static mode remains anchored.
+        // to one of the currently enabled monitor edges. Static mode remains anchored.
         if (requested && dynamic && !_appServices.AppearanceService.GetDynamicEdgeDocked())
             requested = false;
 
@@ -242,6 +253,9 @@ public partial class MainWindow
             offset = anchorPosition.X - monitor.Left;
         }
 
+        if (!IsEdgeAutoHideEnabled(side))
+            return false;
+
         return ApplyEdgeGeometry(monitor, work, width, height, side, offset);
     }
 
@@ -254,8 +268,15 @@ public partial class MainWindow
         if (!TryDecodeEdgeSide(_appServices.AppearanceService.GetDynamicEdgeSide(), out EdgeSide side))
             return false;
 
-        // Dynamic docking intentionally accepts all four edges regardless of
-        // whether the dock's icon layout itself is horizontal or vertical.
+        if (!IsEdgeAutoHideEnabled(side))
+        {
+            _appServices.AppearanceService.SetDynamicEdgeDockState(false, 0, 0);
+            return false;
+        }
+
+        // Dynamic docking accepts all four edges regardless of whether the
+        // dock's icon layout itself is horizontal or vertical. Availability is
+        // controlled only by the two independent edge-group switches.
         return ApplyEdgeGeometry(
             monitor,
             work,
@@ -361,10 +382,10 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// After a Dynamic-mode drag ends, choose the nearest of all four edges.
-    /// The edge is only accepted inside the magnetic threshold. Bottom distance
-    /// is measured against the taskbar-aware work-area boundary rather than the
-    /// physical monitor bottom.
+    /// After a Dynamic-mode drag ends, choose the nearest enabled edge.
+    /// Top/bottom and left/right availability are controlled independently.
+    /// Bottom distance is measured against the taskbar-aware work-area boundary
+    /// rather than the physical monitor bottom.
     /// </summary>
     private void TrySnapDynamicDockAfterDrag()
     {
@@ -382,10 +403,15 @@ public partial class MainWindow
         int height = Math.Max(1, window.Bottom - window.Top);
         int effectiveBottom = MonitorWorkArea.GetEffectiveBottom(monitor, work);
 
-        int topDistance = Math.Abs(window.Top - monitor.Top);
-        int bottomDistance = Math.Abs(effectiveBottom - window.Bottom);
-        int leftDistance = Math.Abs(window.Left - monitor.Left);
-        int rightDistance = Math.Abs(monitor.Right - window.Right);
+        bool horizontalEdges = _appServices.AppearanceService.GetAutoHideAtHorizontalEdges();
+        bool verticalEdges = _appServices.AppearanceService.GetAutoHideAtVerticalEdges();
+        if (!horizontalEdges && !verticalEdges)
+            return;
+
+        int topDistance = horizontalEdges ? Math.Abs(window.Top - monitor.Top) : int.MaxValue;
+        int bottomDistance = horizontalEdges ? Math.Abs(effectiveBottom - window.Bottom) : int.MaxValue;
+        int leftDistance = verticalEdges ? Math.Abs(window.Left - monitor.Left) : int.MaxValue;
+        int rightDistance = verticalEdges ? Math.Abs(monitor.Right - window.Right) : int.MaxValue;
 
         EdgeSide side = EdgeSide.Top;
         int distance = topDistance;
@@ -584,12 +610,12 @@ public partial class MainWindow
         if (_edgeAnimationTimer.IsEnabled && _edgeAnimationTo == target)
             return;
 
-        // The full rectangular region is restored during animation; once fully
-        // hidden we clip the native window to the tail so invisible portions do
-        // not block the desktop or the taskbar.
+        // During motion show only the full dock. The tail is deliberately kept
+        // invisible so it does not leave a distracting moving track. Once the
+        // hide animation reaches its final edge position, SetDockChromeVisible
+        // reveals the tail in-place and clips the native window to it.
         SetDockChromeVisible(true);
-        if (!show)
-            EdgeTail.IsVisible = true;
+        EdgeTail.IsVisible = false;
 
         _edgeShown = show;
         _edgeAnimationFrom = Position;
@@ -727,6 +753,16 @@ public partial class MainWindow
         e.Handled = true;
         _edgeHideAfterUtc = DateTime.UtcNow.AddMilliseconds(EdgeHideDelayMs);
         AnimateEdgeDock(show: true);
+    }
+
+    private bool IsEdgeAutoHideEnabled(EdgeSide side)
+    {
+        if (_appServices == null)
+            return false;
+
+        return side is EdgeSide.Top or EdgeSide.Bottom
+            ? _appServices.AppearanceService.GetAutoHideAtHorizontalEdges()
+            : _appServices.AppearanceService.GetAutoHideAtVerticalEdges();
     }
 
     private static int EncodeEdgeSide(EdgeSide side) => side switch

@@ -2,6 +2,8 @@
 
 Rev v1.1.0 adds portable per-item custom icon overrides on top of the Rev v1.0.0 stable baseline.
 
+Release channel: **stable**.
+
 ## New in v1.1.0
 
 - Add your own icon to any pinned Dock item from **Settings → Icons**.

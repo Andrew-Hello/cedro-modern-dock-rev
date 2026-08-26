@@ -1,5 +1,37 @@
 # Cedro Modern Dock Rev — Changelog
 
+## Rev v1.1.0 — 2026-08-27
+
+Second stable Rev release, focused on portable per-item icon customization and a cleaner development/release workflow.
+
+### Custom icon overrides
+
+- Added a **Custom icon override** section to **Settings → Icons**.
+- Added **Choose custom icon...** and **Restore default icon** actions for the selected pinned item.
+- Supports PNG, ICO, JPG/JPEG, BMP, GIF and TIFF source images.
+- Custom icons take priority over all automatic icon sources, including EXE extraction, packaged Windows App/UWP identity icons, Edge/Chromium PWA icons, folder icons and built-in Windows module icons.
+- Custom overrides also work for the Cedro Settings item.
+- Selected source images are normalized to PNG before persistence.
+- Added `%APPDATA%\CedroModernDock\customIcons` as the managed runtime cache.
+- Custom PNG data is embedded in the item's JSON configuration as Base64, making configuration exports self-contained.
+- Export/import therefore migrates custom icon overrides to another PC without requiring a separate icon-folder copy.
+- Added immediate Dock refresh and Settings-list preview refresh after applying or resetting an override.
+- Added English and Simplified Chinese UI strings for the new controls.
+
+### Build and release workflow
+
+- Updated the enhanced-branch CI to use concurrency cancellation so stale builds are automatically replaced by the newest commit during rapid development.
+- Added a dedicated Rev v1.1.0 stable-release workflow and portable Windows x64 package naming.
+- Updated the main README to make Rev v1.1.0 the current documented release while retaining Rev v1.0.0 as a rollback baseline.
+
+### Compatibility
+
+- Existing Rev v1.0.0 and upstream configurations remain loadable because the custom-icon field is optional.
+- Items without a custom override continue to use the existing automatic icon-resolution pipeline unchanged.
+- Rev v1.0.0 remains frozen and available as a previous known-good release.
+
+---
+
 ## Rev v1.0.0 — 2026-08-26
 
 First stable enhanced baseline of `cedro-modern-dock-rev`.

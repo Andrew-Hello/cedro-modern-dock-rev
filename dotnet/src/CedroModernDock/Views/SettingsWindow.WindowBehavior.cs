@@ -13,10 +13,19 @@ public partial class SettingsWindow
 
     private void InitializeWindowBehaviorSettingsHooks()
     {
+        ItemsList.SelectionChanged += (_, _) => OnCustomIconSelectionChanged();
+
         Opened += (_, _) =>
         {
             InstallWindowBehaviorSettingsPanel();
+            InstallCustomIconControls();
             InstallConfigBackupSettingsPanel();
+
+            if (DataContext is SettingsViewModel vm)
+            {
+                vm.ApplyCustomIconPreviews();
+                RefreshCustomIconButtonStates();
+            }
         };
     }
 

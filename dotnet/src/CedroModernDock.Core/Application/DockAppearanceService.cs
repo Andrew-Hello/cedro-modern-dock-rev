@@ -38,6 +38,38 @@ public class DockAppearanceService
         _dockService.SaveChanges();
     }
 
+    public bool GetShowRunningIndicators() => GetDock().ShowRunningIndicators;
+
+    public void SetShowRunningIndicators(bool value)
+    {
+        GetDock().ShowRunningIndicators = value;
+        _dockService.SaveChanges();
+    }
+
+    public bool GetEnableHoverMagnification() => GetDock().EnableHoverMagnification;
+
+    public void SetEnableHoverMagnification(bool value)
+    {
+        GetDock().EnableHoverMagnification = value;
+        _dockService.SaveChanges();
+    }
+
+    public bool GetShowHoverLabels() => GetDock().ShowHoverLabels;
+
+    public void SetShowHoverLabels(bool value)
+    {
+        GetDock().ShowHoverLabels = value;
+        _dockService.SaveChanges();
+    }
+
+    public bool GetShowWindowPreviews() => GetDock().ShowWindowPreviews;
+
+    public void SetShowWindowPreviews(bool value)
+    {
+        GetDock().ShowWindowPreviews = value;
+        _dockService.SaveChanges();
+    }
+
     public bool GetAlwaysOnTop() => GetDock().AlwaysOnTop;
 
     public void SetAlwaysOnTop(bool value)

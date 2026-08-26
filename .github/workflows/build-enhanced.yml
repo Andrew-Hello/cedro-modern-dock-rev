@@ -6,6 +6,13 @@ on:
       - cedro-enhanced-window
   workflow_dispatch:
 
+# During active development several commits can land within seconds. Only the
+# newest branch state is useful as a downloadable test build, so cancel stale
+# queued/in-progress runs instead of consuming Windows runners for old commits.
+concurrency:
+  group: cedro-enhanced-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: windows-latest

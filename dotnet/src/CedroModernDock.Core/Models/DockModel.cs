@@ -44,12 +44,26 @@ public class DockModel
     public bool AlwaysOnTop { get; set; } = true;
 
     /// <summary>
-    /// Enables edge docking and auto-hide. Static positioning uses its configured
-    /// anchor; dynamic positioning snaps to an eligible edge when the user drags
-    /// the dock close enough and releases it.
+    /// Legacy single edge-auto-hide switch. Kept for backward-compatible JSON
+    /// loading; new builds expose independent horizontal (top/bottom) and
+    /// vertical (left/right) switches below.
     /// </summary>
     [JsonPropertyName("autoHideAtScreenEdge")]
     public bool AutoHideAtScreenEdge { get; set; }
+
+    /// <summary>
+    /// Enables top/bottom edge docking. Nullable so an older config that has
+    /// only autoHideAtScreenEdge can transparently migrate at runtime.
+    /// </summary>
+    [JsonPropertyName("autoHideAtHorizontalEdges")]
+    public bool? AutoHideAtHorizontalEdges { get; set; }
+
+    /// <summary>
+    /// Enables left/right edge docking. Nullable so an older config that has
+    /// only autoHideAtScreenEdge can transparently migrate at runtime.
+    /// </summary>
+    [JsonPropertyName("autoHideAtVerticalEdges")]
+    public bool? AutoHideAtVerticalEdges { get; set; }
 
     /// <summary>
     /// Dynamic-mode edge docking state. Side encoding: 0=None, 1=Top,

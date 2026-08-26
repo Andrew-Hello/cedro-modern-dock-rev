@@ -9,6 +9,7 @@ namespace CedroModernDock;
 
 sealed class Program
 {
+    private const string RestartAfterImportArgument = "--restart-after-import";
     private static SingleInstanceGuard? _singleInstanceGuard;
 
     // Initialization code. Don't use any Avalonia, third-party APIs or any
@@ -21,10 +22,17 @@ sealed class Program
         // silent. Log unhandled exceptions for diagnostics.
         CrashLogger.Hook();
 
-        // Single-instance guard — prevents multiple dock instances.
-        // Port of App.java's SingleInstanceGuard + localized warning dialog.
-        _singleInstanceGuard = new SingleInstanceGuard();
-        if (!_singleInstanceGuard.TryAcquire())
+        bool restartingAfterImport = args.Any(a =>
+            string.Equals(a, RestartAfterImportArgument, StringComparison.OrdinalIgnoreCase));
+
+        // During an import-triggered restart the replacement process is launched
+        // just before the old process exits. Wait/retry the named mutex rather
+        // than showing a false "already running" warning and abandoning restart.
+        bool acquired = restartingAfterImport
+            ? TryAcquireSingleInstanceWithRetry(TimeSpan.FromSeconds(6))
+            : TryAcquireSingleInstanceOnce();
+
+        if (!acquired)
         {
             var language = new JsonDockRepository().Load().Language;
             string message = LocalizationService.BootstrapText(language, "dialog.singleInstance.message");
@@ -38,13 +46,43 @@ sealed class Program
 
         try
         {
-            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            // Internal restart coordination arguments are not relevant to
+            // Avalonia's desktop lifetime.
+            string[] appArgs = args
+                .Where(a => !string.Equals(a, RestartAfterImportArgument, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(appArgs);
         }
         finally
         {
             _singleInstanceGuard?.Dispose();
             _singleInstanceGuard = null;
         }
+    }
+
+    private static bool TryAcquireSingleInstanceOnce()
+    {
+        _singleInstanceGuard = new SingleInstanceGuard();
+        if (_singleInstanceGuard.TryAcquire())
+            return true;
+
+        _singleInstanceGuard.Dispose();
+        _singleInstanceGuard = null;
+        return false;
+    }
+
+    private static bool TryAcquireSingleInstanceWithRetry(TimeSpan timeout)
+    {
+        DateTime deadline = DateTime.UtcNow + timeout;
+        do
+        {
+            if (TryAcquireSingleInstanceOnce())
+                return true;
+            System.Threading.Thread.Sleep(100);
+        }
+        while (DateTime.UtcNow < deadline);
+
+        return false;
     }
 
     // Avalonia configuration, don't remove; also used by visual designer.

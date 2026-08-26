@@ -34,6 +34,22 @@ public class DockModel
     [JsonPropertyName("dockVerticalPadding")]
     public int DockVerticalPadding { get; set; } = 4;
 
+    /// <summary>Show the small running-state dot under program icons.</summary>
+    [JsonPropertyName("showRunningIndicators")]
+    public bool ShowRunningIndicators { get; set; } = true;
+
+    /// <summary>Magnify an icon slightly while the pointer is over it.</summary>
+    [JsonPropertyName("enableHoverMagnification")]
+    public bool EnableHoverMagnification { get; set; } = true;
+
+    /// <summary>Show the program/item name tooltip while hovering an icon.</summary>
+    [JsonPropertyName("showHoverLabels")]
+    public bool ShowHoverLabels { get; set; } = true;
+
+    /// <summary>Show live window thumbnails when hovering an open program.</summary>
+    [JsonPropertyName("showWindowPreviews")]
+    public bool ShowWindowPreviews { get; set; } = true;
+
     /// <summary>
     /// User preference for keeping the dock in the topmost window band.
     /// Defaults to true to preserve the enhanced dock behavior for existing users.

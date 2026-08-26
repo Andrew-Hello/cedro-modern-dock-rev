@@ -32,6 +32,8 @@ public partial class MainWindow
     private PixelPoint _edgeHiddenPosition;
     private EdgeSide _edgeSide;
     private RECT _edgeMonitorRect;
+    private RECT _edgeWorkRect;
+    private int _edgeBottomBoundary;
     private int _edgeWindowWidth;
     private int _edgeWindowHeight;
     private DateTime _edgeHideAfterUtc;
@@ -48,10 +50,6 @@ public partial class MainWindow
         Right
     }
 
-    /// <summary>
-    /// Called by the main constructor. The actual native work starts only after
-    /// Opened, when Avalonia has created the HWND and DockWindowBehavior exists.
-    /// </summary>
     private void InitializeEnhancedWindowBehaviorHooks()
     {
         Opened += OnEnhancedWindowOpened;
@@ -83,10 +81,6 @@ public partial class MainWindow
         };
         _edgeAnimationTimer.Tick += (_, _) => TickEdgeAnimation();
 
-        // Fires before the original 200ms position-persist timer. In Dynamic
-        // mode this gives edge snapping first chance after a native move-drag,
-        // so a near-edge release becomes a docked state instead of being saved
-        // as an arbitrary free coordinate.
         _dynamicSnapTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(DynamicSnapDebounceMs)
@@ -98,6 +92,7 @@ public partial class MainWindow
         };
         PositionChanged += OnEnhancedDockPositionChanged;
 
+        ClearWindowRegion();
         SetDockChromeVisible(true);
         RefreshTopmostPolicy();
         PollEdgeAutoHide();
@@ -117,15 +112,10 @@ public partial class MainWindow
         _edgeAnimationTimer = null;
         _dynamicSnapTimer = null;
         _edgeAutoHideActive = false;
+        ClearWindowRegion();
         _enhancedWindowHandle = IntPtr.Zero;
     }
 
-    /// <summary>
-    /// Applies the user's Always-on-top preference, but temporarily drops the
-    /// dock out of the topmost band while another app truly covers its monitor.
-    /// This makes fullscreen/borderless games immune to dock overlays and
-    /// restores topmost automatically as soon as fullscreen ends.
-    /// </summary>
     private void RefreshTopmostPolicy()
     {
         if (_appServices == null || _dockBehavior == null || _enhancedWindowHandle == IntPtr.Zero)
@@ -144,9 +134,8 @@ public partial class MainWindow
         bool requested = _appServices.AppearanceService.GetAutoHideAtScreenEdge();
         bool dynamic = _appServices.PositioningService.IsDynamicPositioning();
 
-        // In Dynamic mode the feature is dormant until the user explicitly
-        // drags close to a compatible edge. Static mode remains always docked
-        // according to its anchor while the setting is enabled.
+        // Dynamic mode stays free until the user explicitly drags close enough
+        // to any of the four monitor edges. Static mode remains anchored.
         if (requested && dynamic && !_appServices.AppearanceService.GetDynamicEdgeDocked())
             requested = false;
 
@@ -165,8 +154,6 @@ public partial class MainWindow
 
         RefreshEdgeGeometryIfNeeded();
 
-        // Do not let touching a screen edge summon the dock over a fullscreen
-        // game/video. It stays hidden until fullscreen ends, then behaves normally.
         if (_foregroundFullscreen)
         {
             AnimateEdgeDock(show: false);
@@ -217,20 +204,13 @@ public partial class MainWindow
         _edgeAutoHideActive = false;
         _edgeShown = true;
         SetDockChromeVisible(true);
-        // Restore the exact normal/saved visible position instead of leaving
-        // the dock partially outside the screen.
         ApplyDockPosition(force: true);
     }
 
-    /// <summary>
-    /// Computes the edge geometry used by Static positioning. The selected
-    /// alignment chooses the edge; the current anchored position supplies the
-    /// along-edge location.
-    /// </summary>
     private bool ComputeStaticEdgeGeometry(PixelPoint anchorPosition)
     {
         if (_appServices == null ||
-            !TryGetCurrentWindowMetrics(out RECT monitor, out int width, out int height))
+            !TryGetCurrentWindowMetrics(out RECT monitor, out RECT work, out int width, out int height))
             return false;
 
         bool verticalDock = _appServices.AppearanceService.GetVerticalDock();
@@ -262,40 +242,42 @@ public partial class MainWindow
             offset = anchorPosition.X - monitor.Left;
         }
 
-        return ApplyEdgeGeometry(monitor, width, height, side, offset);
+        return ApplyEdgeGeometry(monitor, work, width, height, side, offset);
     }
 
     private bool ComputeDynamicEdgeGeometryFromSavedState()
     {
         if (_appServices == null ||
-            !TryGetCurrentWindowMetrics(out RECT monitor, out int width, out int height))
+            !TryGetCurrentWindowMetrics(out RECT monitor, out RECT work, out int width, out int height))
             return false;
 
         if (!TryDecodeEdgeSide(_appServices.AppearanceService.GetDynamicEdgeSide(), out EdgeSide side))
             return false;
 
-        bool verticalDock = _appServices.AppearanceService.GetVerticalDock();
-        if ((verticalDock && side is not (EdgeSide.Left or EdgeSide.Right)) ||
-            (!verticalDock && side is not (EdgeSide.Top or EdgeSide.Bottom)))
-        {
-            _appServices.AppearanceService.SetDynamicEdgeDockState(false, 0, 0);
-            return false;
-        }
-
+        // Dynamic docking intentionally accepts all four edges regardless of
+        // whether the dock's icon layout itself is horizontal or vertical.
         return ApplyEdgeGeometry(
             monitor,
+            work,
             width,
             height,
             side,
             _appServices.AppearanceService.GetDynamicEdgeOffset());
     }
 
-    private bool ApplyEdgeGeometry(RECT monitor, int width, int height, EdgeSide side, int alongOffset)
+    private bool ApplyEdgeGeometry(
+        RECT monitor,
+        RECT work,
+        int width,
+        int height,
+        EdgeSide side,
+        int alongOffset)
     {
         int visibleX;
         int visibleY;
         int hiddenX;
         int hiddenY;
+        int effectiveBottom = MonitorWorkArea.GetEffectiveBottom(monitor, work);
 
         switch (side)
         {
@@ -307,10 +289,12 @@ public partial class MainWindow
                 break;
 
             case EdgeSide.Bottom:
+                // Bottom is special: when a normal taskbar reserves the bottom
+                // work area, the dock treats the taskbar's top edge as its edge.
                 visibleX = Math.Clamp(monitor.Left + alongOffset, monitor.Left, Math.Max(monitor.Left, monitor.Right - width));
-                visibleY = monitor.Bottom - height;
+                visibleY = effectiveBottom - height;
                 hiddenX = visibleX;
-                hiddenY = monitor.Bottom - EdgeTailThickness;
+                hiddenY = effectiveBottom - EdgeTailThickness;
                 break;
 
             case EdgeSide.Left:
@@ -333,6 +317,8 @@ public partial class MainWindow
 
         _edgeSide = side;
         _edgeMonitorRect = monitor;
+        _edgeWorkRect = work;
+        _edgeBottomBoundary = effectiveBottom;
         _edgeWindowWidth = width;
         _edgeWindowHeight = height;
         _edgeVisiblePosition = new PixelPoint(visibleX, visibleY);
@@ -341,11 +327,16 @@ public partial class MainWindow
         return true;
     }
 
-    private bool TryGetCurrentWindowMetrics(out RECT monitor, out int width, out int height)
+    private bool TryGetCurrentWindowMetrics(
+        out RECT monitor,
+        out RECT work,
+        out int width,
+        out int height)
     {
         monitor = default;
+        work = default;
         width = height = 0;
-        if (!WindowEnvironment.TryGetMonitorRect(_enhancedWindowHandle, out monitor) ||
+        if (!MonitorWorkArea.TryGet(_enhancedWindowHandle, out monitor, out work) ||
             !WindowEnvironment.TryGetWindowRect(_enhancedWindowHandle, out RECT window))
             return false;
 
@@ -370,9 +361,10 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// Called shortly after a Dynamic-mode native move-drag stops. Horizontal
-    /// docks magnetically snap to top/bottom; vertical docks snap to left/right.
-    /// A free-position release simply clears any previous edge-docked state.
+    /// After a Dynamic-mode drag ends, choose the nearest of all four edges.
+    /// The edge is only accepted inside the magnetic threshold. Bottom distance
+    /// is measured against the taskbar-aware work-area boundary rather than the
+    /// physical monitor bottom.
     /// </summary>
     private void TrySnapDynamicDockAfterDrag()
     {
@@ -382,58 +374,83 @@ public partial class MainWindow
             !_appServices.AppearanceService.GetAutoHideAtScreenEdge() ||
             _edgeAutoHideActive || _dynamicSnapInProgress)
             return;
-        if (!WindowEnvironment.TryGetMonitorRect(_enhancedWindowHandle, out RECT monitor) ||
+        if (!MonitorWorkArea.TryGet(_enhancedWindowHandle, out RECT monitor, out RECT work) ||
             !WindowEnvironment.TryGetWindowRect(_enhancedWindowHandle, out RECT window))
             return;
 
-        bool verticalDock = _appServices.AppearanceService.GetVerticalDock();
-        EdgeSide side;
-        int distance;
+        int width = Math.Max(1, window.Right - window.Left);
+        int height = Math.Max(1, window.Bottom - window.Top);
+        int effectiveBottom = MonitorWorkArea.GetEffectiveBottom(monitor, work);
+
+        int topDistance = Math.Abs(window.Top - monitor.Top);
+        int bottomDistance = Math.Abs(effectiveBottom - window.Bottom);
+        int leftDistance = Math.Abs(window.Left - monitor.Left);
+        int rightDistance = Math.Abs(monitor.Right - window.Right);
+
+        EdgeSide side = EdgeSide.Top;
+        int distance = topDistance;
+        if (bottomDistance < distance)
+        {
+            side = EdgeSide.Bottom;
+            distance = bottomDistance;
+        }
+        if (leftDistance < distance)
+        {
+            side = EdgeSide.Left;
+            distance = leftDistance;
+        }
+        if (rightDistance < distance)
+        {
+            side = EdgeSide.Right;
+            distance = rightDistance;
+        }
+
+        if (distance > DynamicEdgeSnapDistance)
+        {
+            _appServices.AppearanceService.SetDynamicEdgeDockState(false, 0, 0);
+            return;
+        }
+
         int visibleX;
         int visibleY;
         int offset;
 
-        if (verticalDock)
+        switch (side)
         {
-            int leftDistance = Math.Abs(window.Left - monitor.Left);
-            int rightDistance = Math.Abs(monitor.Right - window.Right);
-            distance = Math.Min(leftDistance, rightDistance);
-            if (distance > DynamicEdgeSnapDistance)
-            {
-                _appServices.AppearanceService.SetDynamicEdgeDockState(false, 0, 0);
-                return;
-            }
+            case EdgeSide.Top:
+                visibleX = Math.Clamp(window.Left, monitor.Left, Math.Max(monitor.Left, monitor.Right - width));
+                visibleY = monitor.Top;
+                offset = visibleX - monitor.Left;
+                break;
 
-            side = leftDistance <= rightDistance ? EdgeSide.Left : EdgeSide.Right;
-            visibleX = side == EdgeSide.Left ? monitor.Left : monitor.Right - (window.Right - window.Left);
-            visibleY = Math.Clamp(window.Top, monitor.Top, Math.Max(monitor.Top, monitor.Bottom - (window.Bottom - window.Top)));
-            offset = visibleY - monitor.Top;
-        }
-        else
-        {
-            int topDistance = Math.Abs(window.Top - monitor.Top);
-            int bottomDistance = Math.Abs(monitor.Bottom - window.Bottom);
-            distance = Math.Min(topDistance, bottomDistance);
-            if (distance > DynamicEdgeSnapDistance)
-            {
-                _appServices.AppearanceService.SetDynamicEdgeDockState(false, 0, 0);
-                return;
-            }
+            case EdgeSide.Bottom:
+                visibleX = Math.Clamp(window.Left, monitor.Left, Math.Max(monitor.Left, monitor.Right - width));
+                visibleY = effectiveBottom - height;
+                offset = visibleX - monitor.Left;
+                break;
 
-            side = topDistance <= bottomDistance ? EdgeSide.Top : EdgeSide.Bottom;
-            visibleX = Math.Clamp(window.Left, monitor.Left, Math.Max(monitor.Left, monitor.Right - (window.Right - window.Left)));
-            visibleY = side == EdgeSide.Top ? monitor.Top : monitor.Bottom - (window.Bottom - window.Top);
-            offset = visibleX - monitor.Left;
+            case EdgeSide.Left:
+                visibleX = monitor.Left;
+                visibleY = Math.Clamp(window.Top, monitor.Top, Math.Max(monitor.Top, monitor.Bottom - height));
+                offset = visibleY - monitor.Top;
+                break;
+
+            case EdgeSide.Right:
+                visibleX = monitor.Right - width;
+                visibleY = Math.Clamp(window.Top, monitor.Top, Math.Max(monitor.Top, monitor.Bottom - height));
+                offset = visibleY - monitor.Top;
+                break;
+
+            default:
+                return;
         }
 
         _dynamicSnapInProgress = true;
         try
         {
-            int persistedSide = EncodeEdgeSide(side);
-            _appServices.AppearanceService.SetDynamicEdgeDockState(true, persistedSide, offset);
+            _appServices.AppearanceService.SetDynamicEdgeDockState(true, EncodeEdgeSide(side), offset);
 
-            // Persist the visible edge position, never the later hidden/offscreen
-            // animation coordinate. This makes restarts deterministic.
+            // Persist the expanded/safe anchor, never an offscreen hidden point.
             _appServices.DockService.SetDockPosition(visibleX, visibleY);
             _positionPersistTimer.Stop();
             Position = new PixelPoint(visibleX, visibleY);
@@ -454,11 +471,6 @@ public partial class MainWindow
         }
     }
 
-    /// <summary>
-    /// Called from MainWindow before a user starts dragging an already docked
-    /// Dynamic dock. The dock becomes free immediately; releasing near an edge
-    /// snaps it again, while releasing inside the screen leaves it undocked.
-    /// </summary>
     private void PrepareDynamicEdgeDockForDrag()
     {
         if (_appServices == null || !_appServices.PositioningService.IsDynamicPositioning())
@@ -480,12 +492,13 @@ public partial class MainWindow
         if (!_edgeAutoHideActive || _edgeAnimationTimer?.IsEnabled == true || _appServices == null)
             return;
 
-        if (!TryGetCurrentWindowMetrics(out RECT monitor, out int width, out int height))
+        if (!TryGetCurrentWindowMetrics(out RECT monitor, out RECT work, out int width, out int height))
             return;
 
         bool geometryChanged = width != _edgeWindowWidth ||
                                height != _edgeWindowHeight ||
-                               !RectsEqual(monitor, _edgeMonitorRect);
+                               !RectsEqual(monitor, _edgeMonitorRect) ||
+                               !RectsEqual(work, _edgeWorkRect);
 
         bool atVisible = IsNear(Position, _edgeVisiblePosition);
         bool atHidden = IsNear(Position, _edgeHiddenPosition);
@@ -512,7 +525,7 @@ public partial class MainWindow
 
     private bool IsCursorInTailHotZone(POINT cursor)
     {
-        int halfExtra = 4;
+        const int halfExtra = 4;
         int tailLeft = _edgeVisiblePosition.X + Math.Max(0, (_edgeWindowWidth - EdgeTailLength) / 2) - halfExtra;
         int tailTop = _edgeVisiblePosition.Y + Math.Max(0, (_edgeWindowHeight - EdgeTailLength) / 2) - halfExtra;
         int horizontalLength = Math.Min(EdgeTailLength, _edgeWindowWidth) + (halfExtra * 2);
@@ -525,7 +538,7 @@ public partial class MainWindow
                 cursor.X >= tailLeft && cursor.X <= tailLeft + horizontalLength,
 
             EdgeSide.Bottom =>
-                cursor.Y >= _edgeMonitorRect.Bottom - EdgeTailThickness - halfExtra && cursor.Y < _edgeMonitorRect.Bottom &&
+                cursor.Y >= _edgeBottomBoundary - EdgeTailThickness - halfExtra && cursor.Y < _edgeBottomBoundary &&
                 cursor.X >= tailLeft && cursor.X <= tailLeft + horizontalLength,
 
             EdgeSide.Left =>
@@ -571,9 +584,9 @@ public partial class MainWindow
         if (_edgeAnimationTimer.IsEnabled && _edgeAnimationTo == target)
             return;
 
-        // The full dock needs to be drawable while sliding out. While sliding
-        // in, the tail is already configured and becomes the only visible
-        // control once the animation reaches its hidden endpoint.
+        // The full rectangular region is restored during animation; once fully
+        // hidden we clip the native window to the tail so invisible portions do
+        // not block the desktop or the taskbar.
         SetDockChromeVisible(true);
         if (!show)
             EdgeTail.IsVisible = true;
@@ -611,18 +624,21 @@ public partial class MainWindow
         if (Position != position)
             Position = position;
 
-        // MainWindow's legacy Dynamic-position persistence observes all window
-        // movement, including our animation. Never let hidden/offscreen positions
-        // overwrite the saved visible edge anchor.
         if (_edgeAutoHideActive)
             _positionPersistTimer.Stop();
     }
 
     private void SetDockChromeVisible(bool dockVisible)
     {
+        if (dockVisible)
+            ClearWindowRegion();
+
         DockBar.Opacity = dockVisible ? 1.0 : 0.0;
         DockBar.IsHitTestVisible = dockVisible;
         EdgeTail.IsVisible = !dockVisible && _edgeAutoHideActive;
+
+        if (!dockVisible && _edgeAutoHideActive)
+            ApplyTailOnlyWindowRegion();
     }
 
     private void ConfigureEdgeTail(EdgeSide side)
@@ -645,6 +661,57 @@ public partial class MainWindow
             EdgeSide.Bottom => VerticalAlignment.Top,
             _ => VerticalAlignment.Center
         };
+    }
+
+    /// <summary>
+    /// Restricts the native HWND to the visible tail while hidden. This is
+    /// especially important for bottom docking above the taskbar: the offscreen
+    /// transparent part of the dock must not cover or intercept the taskbar.
+    /// </summary>
+    private void ApplyTailOnlyWindowRegion()
+    {
+        if (_enhancedWindowHandle == IntPtr.Zero || _edgeWindowWidth <= 0 || _edgeWindowHeight <= 0)
+            return;
+
+        int x;
+        int y;
+        int width;
+        int height;
+
+        if (_edgeSide is EdgeSide.Top or EdgeSide.Bottom)
+        {
+            width = Math.Min(EdgeTailLength, _edgeWindowWidth);
+            height = Math.Min(EdgeTailThickness, _edgeWindowHeight);
+            x = Math.Max(0, (_edgeWindowWidth - width) / 2);
+            y = _edgeSide == EdgeSide.Top ? Math.Max(0, _edgeWindowHeight - height) : 0;
+        }
+        else
+        {
+            width = Math.Min(EdgeTailThickness, _edgeWindowWidth);
+            height = Math.Min(EdgeTailLength, _edgeWindowHeight);
+            x = _edgeSide == EdgeSide.Left ? Math.Max(0, _edgeWindowWidth - width) : 0;
+            y = Math.Max(0, (_edgeWindowHeight - height) / 2);
+        }
+
+        IntPtr region = User32.CreateRoundRectRgn(
+            x,
+            y,
+            x + width + 1,
+            y + height + 1,
+            EdgeTailThickness,
+            EdgeTailThickness);
+        if (region == IntPtr.Zero)
+            return;
+
+        // On success SetWindowRgn transfers ownership of HRGN to Windows.
+        if (User32.SetWindowRgn(_enhancedWindowHandle, region, true) == 0)
+            Gdi32.DeleteObject(region);
+    }
+
+    private void ClearWindowRegion()
+    {
+        if (_enhancedWindowHandle != IntPtr.Zero)
+            User32.SetWindowRgn(_enhancedWindowHandle, IntPtr.Zero, true);
     }
 
     private void OnEdgeTailPointerEntered(object? sender, PointerEventArgs e)

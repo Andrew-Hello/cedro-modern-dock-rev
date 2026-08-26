@@ -46,11 +46,53 @@ public class DockAppearanceService
         _dockService.SaveChanges();
     }
 
-    public bool GetAutoHideAtScreenEdge() => GetDock().AutoHideAtScreenEdge;
+    /// <summary>
+    /// Legacy aggregate getter kept for runtime callers: true when either
+    /// top/bottom or left/right edge auto-hide is enabled.
+    /// </summary>
+    public bool GetAutoHideAtScreenEdge()
+        => GetAutoHideAtHorizontalEdges() || GetAutoHideAtVerticalEdges();
 
+    /// <summary>
+    /// Legacy aggregate setter. Used only for backward compatibility and sets
+    /// both independent edge groups to the same value.
+    /// </summary>
     public void SetAutoHideAtScreenEdge(bool value)
     {
-        GetDock().AutoHideAtScreenEdge = value;
+        DockModel dock = GetDock();
+        dock.AutoHideAtScreenEdge = value;
+        dock.AutoHideAtHorizontalEdges = value;
+        dock.AutoHideAtVerticalEdges = value;
+        _dockService.SaveChanges();
+    }
+
+    /// <summary>Top/bottom screen edges.</summary>
+    public bool GetAutoHideAtHorizontalEdges()
+    {
+        DockModel dock = GetDock();
+        return dock.AutoHideAtHorizontalEdges ?? dock.AutoHideAtScreenEdge;
+    }
+
+    public void SetAutoHideAtHorizontalEdges(bool value)
+    {
+        DockModel dock = GetDock();
+        dock.AutoHideAtHorizontalEdges = value;
+        dock.AutoHideAtScreenEdge = value || GetAutoHideAtVerticalEdges();
+        _dockService.SaveChanges();
+    }
+
+    /// <summary>Left/right screen edges.</summary>
+    public bool GetAutoHideAtVerticalEdges()
+    {
+        DockModel dock = GetDock();
+        return dock.AutoHideAtVerticalEdges ?? dock.AutoHideAtScreenEdge;
+    }
+
+    public void SetAutoHideAtVerticalEdges(bool value)
+    {
+        DockModel dock = GetDock();
+        dock.AutoHideAtVerticalEdges = value;
+        dock.AutoHideAtScreenEdge = value || GetAutoHideAtHorizontalEdges();
         _dockService.SaveChanges();
     }
 

@@ -11,6 +11,9 @@ public class DockSettingsItemModel : DockItem
     public string Label { get; set; } = "Settings";
     public string Path { get; set; } = "/com/github/arthurdeka/cedromoderndock/icons/settings.png";
 
+    [JsonPropertyName("customIconPngBase64")]
+    public string? CustomIconPngBase64 { get; set; }
+
     [JsonIgnore]
     public DockItemType Type => DockItemType.SETTINGS;
 

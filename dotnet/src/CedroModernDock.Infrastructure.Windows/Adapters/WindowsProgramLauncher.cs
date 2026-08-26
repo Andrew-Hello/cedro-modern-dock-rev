@@ -4,9 +4,9 @@ using System.Diagnostics;
 using CedroModernDock.Core.Domain;
 
 /// <summary>
-/// Direct port of DefaultProgramLauncher.java. Launches executables,
-/// with special handling for Discord (Squirrel-installed apps) and
-/// automatic elevation (UAC) when the standard launch fails with error=740.
+/// Launches classic executables and enhanced Windows shell targets. Shell
+/// targets allow packaged apps/UWP apps and installed web apps to be pinned by
+/// AppUserModelID instead of requiring a directly executable .exe path.
 /// </summary>
 public class WindowsProgramLauncher : IProgramLauncher
 {
@@ -16,25 +16,82 @@ public class WindowsProgramLauncher : IProgramLauncher
 
         if (string.IsNullOrWhiteSpace(executablePath))
         {
-            Debug.WriteLine($"Executable path not defined for: {label}");
+            Debug.WriteLine($"Launch target not defined for: {label}");
             return false;
         }
 
         try
         {
+            if (IsShellNamespaceTarget(executablePath))
+                return LaunchShellNamespaceTarget(executablePath, label);
+
+            if (IsShellHandledFile(executablePath))
+                return LaunchShellHandledFile(executablePath, label);
+
             return ExecuteAndHandleElevation(executablePath, label);
         }
         catch (Exception e)
         {
-            // A failed launch must never take the dock down: elevation
-            // (error 740) is handled inside; any other failure (missing
-            // file, bad path, invalid exe) is logged and reported as a
-            // failed launch.
             Debug.WriteLine($"Failed to open: {label}");
-            Debug.WriteLine($"Path: {executablePath}");
+            Debug.WriteLine($"Target: {executablePath}");
             Debug.WriteLine($"Error: {e.Message}");
             return false;
         }
+    }
+
+    private static bool IsShellNamespaceTarget(string target)
+        => target.StartsWith("shell:", StringComparison.OrdinalIgnoreCase)
+           || target.StartsWith("ms-settings:", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsShellHandledFile(string target)
+    {
+        string extension = Path.GetExtension(target);
+        return extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase)
+               || extension.Equals(".url", StringComparison.OrdinalIgnoreCase)
+               || extension.Equals(".appref-ms", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool LaunchShellNamespaceTarget(string target, string label)
+    {
+        // Explorer reliably resolves the AppsFolder namespace and launches the
+        // registered app behind an AUMID. ms-settings: and similar protocols can
+        // be handed directly to ShellExecute.
+        ProcessStartInfo startInfo;
+        if (target.StartsWith("shell:", StringComparison.OrdinalIgnoreCase))
+        {
+            startInfo = new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"\"{target}\"",
+                UseShellExecute = true
+            };
+        }
+        else
+        {
+            startInfo = new ProcessStartInfo
+            {
+                FileName = target,
+                UseShellExecute = true
+            };
+        }
+
+        Process.Start(startInfo);
+        Debug.WriteLine($"Executing shell target: {label} -> {target}");
+        return true;
+    }
+
+    private static bool LaunchShellHandledFile(string path, string label)
+    {
+        if (!File.Exists(path))
+            return false;
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = path,
+            UseShellExecute = true
+        });
+        Debug.WriteLine($"Executing shell-handled shortcut: {label}");
+        return true;
     }
 
     private bool ExecuteAndHandleElevation(string path, string label)
@@ -62,7 +119,6 @@ public class WindowsProgramLauncher : IProgramLauncher
         }
         catch (System.ComponentModel.Win32Exception e)
         {
-            // error=740 means elevation is required (ERROR_ELEVATION_REQUIRED)
             if (e.NativeErrorCode == 740)
             {
                 Debug.WriteLine("Standard execution failed. Requesting elevation...");
@@ -140,6 +196,5 @@ public class WindowsProgramLauncher : IProgramLauncher
 
     private static string EscapePowerShellArgument(string argument) => argument.Replace("'", "''");
 
-    /// <summary>Direct port of the Java LaunchCommand record.</summary>
     public sealed record LaunchCommand(string ExecutablePath, string[] Arguments);
 }

@@ -1,0 +1,1 @@
+Four-edge edge docking + taskbar-aware bottom edge implementation staging file.

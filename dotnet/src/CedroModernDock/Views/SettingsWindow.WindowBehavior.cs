@@ -59,18 +59,38 @@ public partial class SettingsWindow
             Margin = new Avalonia.Thickness(22, 0, 0, 4)
         };
 
-        var edgeAutoHide = new CheckBox
+        var horizontalEdgeAutoHide = new CheckBox
         {
-            Content = vm.EdgeAutoHideTitle,
-            IsChecked = vm.AutoHideAtScreenEdge,
+            Content = vm.HorizontalEdgeAutoHideTitle,
+            IsChecked = vm.AutoHideAtHorizontalEdges,
             Foreground = new SolidColorBrush(Color.Parse("#CCCCCC")),
             Margin = new Avalonia.Thickness(0, 4, 0, 0)
         };
-        edgeAutoHide.Click += (_, _) => vm.AutoHideAtScreenEdge = edgeAutoHide.IsChecked == true;
+        horizontalEdgeAutoHide.Click += (_, _) =>
+            vm.AutoHideAtHorizontalEdges = horizontalEdgeAutoHide.IsChecked == true;
 
-        var edgeAutoHideHelper = new TextBlock
+        var horizontalEdgeHelper = new TextBlock
         {
-            Text = vm.EdgeAutoHideHelper,
+            Text = vm.HorizontalEdgeAutoHideHelper,
+            FontSize = 11,
+            Foreground = new SolidColorBrush(Color.Parse("#888888")),
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Avalonia.Thickness(22, 0, 0, 4)
+        };
+
+        var verticalEdgeAutoHide = new CheckBox
+        {
+            Content = vm.VerticalEdgeAutoHideTitle,
+            IsChecked = vm.AutoHideAtVerticalEdges,
+            Foreground = new SolidColorBrush(Color.Parse("#CCCCCC")),
+            Margin = new Avalonia.Thickness(0, 4, 0, 0)
+        };
+        verticalEdgeAutoHide.Click += (_, _) =>
+            vm.AutoHideAtVerticalEdges = verticalEdgeAutoHide.IsChecked == true;
+
+        var verticalEdgeHelper = new TextBlock
+        {
+            Text = vm.VerticalEdgeAutoHideHelper,
             FontSize = 11,
             Foreground = new SolidColorBrush(Color.Parse("#888888")),
             TextWrapping = TextWrapping.Wrap,
@@ -83,7 +103,9 @@ public partial class SettingsWindow
         generalPanel.Children.Insert(insertAt++, heading);
         generalPanel.Children.Insert(insertAt++, alwaysOnTop);
         generalPanel.Children.Insert(insertAt++, alwaysOnTopHelper);
-        generalPanel.Children.Insert(insertAt++, edgeAutoHide);
-        generalPanel.Children.Insert(insertAt, edgeAutoHideHelper);
+        generalPanel.Children.Insert(insertAt++, horizontalEdgeAutoHide);
+        generalPanel.Children.Insert(insertAt++, horizontalEdgeHelper);
+        generalPanel.Children.Insert(insertAt++, verticalEdgeAutoHide);
+        generalPanel.Children.Insert(insertAt, verticalEdgeHelper);
     }
 }

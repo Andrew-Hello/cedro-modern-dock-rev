@@ -3,6 +3,7 @@ namespace CedroModernDock.ViewModels;
 using System.Windows.Input;
 using Avalonia.Media.Imaging;
 using CedroModernDock.Core.Models;
+using CedroModernDock.Infrastructure.Windows.Native;
 
 /// <summary>
 /// ViewModel for a single pinned dock item. Besides icon/running state, it now
@@ -12,6 +13,8 @@ using CedroModernDock.Core.Models;
 public class DockItemViewModel : ViewModelBase
 {
     private Bitmap? _icon;
+    private Bitmap? _customIcon;
+    private bool _customIconResolved;
     private bool _isRunning;
     private bool _showRunningIndicator = true;
     private bool _enableHoverMagnification = true;
@@ -23,7 +26,26 @@ public class DockItemViewModel : ViewModelBase
     public Bitmap? Icon
     {
         get => _icon;
-        set => SetProperty(ref _icon, value);
+        set
+        {
+            // A custom icon is an explicit per-item override and therefore wins
+            // over every automatic source (EXE, AppX/PWA cache, folder, module).
+            // It is intentionally shown exactly as selected rather than receiving
+            // the optional global icon tint.
+            Bitmap? effective = ResolveCustomIcon() ?? value;
+            SetProperty(ref _icon, effective);
+        }
+    }
+
+    private Bitmap? ResolveCustomIcon()
+    {
+        if (_customIconResolved)
+            return _customIcon;
+
+        _customIconResolved = true;
+        string? path = CustomIconStore.EnsureCached(Item.CustomIconPngBase64);
+        _customIcon = IconLoader.LoadFromFile(path);
+        return _customIcon;
     }
 
     public bool IsRunning

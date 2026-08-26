@@ -21,6 +21,15 @@ public interface DockItem
     string Label { get; set; }
     string Path { get; set; }
 
+    /// <summary>
+    /// Optional user-selected icon override, stored as normalized PNG bytes in
+    /// Base64. Keeping the bytes in config.json makes exported configurations
+    /// self-contained and portable to another PC; the Windows UI materializes a
+    /// cached copy under %APPDATA%\CedroModernDock\customIcons at runtime.
+    /// </summary>
+    [JsonPropertyName("customIconPngBase64")]
+    string? CustomIconPngBase64 { get; set; }
+
     /// <summary>Not serialized — resolved from the concrete type.</summary>
     [JsonIgnore]
     DockItemType Type { get; }

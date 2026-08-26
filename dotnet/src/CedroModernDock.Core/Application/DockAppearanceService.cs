@@ -54,6 +54,19 @@ public class DockAppearanceService
         _dockService.SaveChanges();
     }
 
+    public bool GetDynamicEdgeDocked() => GetDock().DynamicEdgeDocked;
+    public int GetDynamicEdgeSide() => Math.Clamp(GetDock().DynamicEdgeSide, 0, 4);
+    public int GetDynamicEdgeOffset() => Math.Max(0, GetDock().DynamicEdgeOffset);
+
+    public void SetDynamicEdgeDockState(bool docked, int side, int offset)
+    {
+        DockModel dock = GetDock();
+        dock.DynamicEdgeDocked = docked;
+        dock.DynamicEdgeSide = docked ? Math.Clamp(side, 1, 4) : 0;
+        dock.DynamicEdgeOffset = docked ? Math.Max(0, offset) : 0;
+        _dockService.SaveChanges();
+    }
+
     public int GetDockTransparencyPercentage() => (int)(GetDock().DockTransparency * 100);
 
     public void SetDockTransparencyPercentage(int value)

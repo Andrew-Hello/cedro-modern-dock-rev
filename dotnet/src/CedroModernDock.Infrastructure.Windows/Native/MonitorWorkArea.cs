@@ -27,6 +27,9 @@ public static class MonitorWorkArea
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
 
+    [DllImport("gdi32.dll", SetLastError = true)]
+    private static extern bool DeleteObject(IntPtr hObject);
+
     public static bool TryGet(IntPtr hwnd, out RECT monitor, out RECT work)
     {
         monitor = default;
@@ -50,7 +53,11 @@ public static class MonitorWorkArea
     /// snapping tied to the physical monitor edges exactly as before.
     /// </summary>
     public static int GetEffectiveBottom(RECT monitor, RECT work)
+        => work.Bottom < monitor.Bottom ? work.Bottom : monitor.Bottom;
+
+    public static void DeleteRegionIfOwned(IntPtr region)
     {
-        return work.Bottom < monitor.Bottom ? work.Bottom : monitor.Bottom;
+        if (region != IntPtr.Zero)
+            DeleteObject(region);
     }
 }

@@ -1,53 +1,106 @@
+using System.Windows.Input;
 using Avalonia.Media.Imaging;
 
 namespace CedroModernDock.ViewModels;
 
 /// <summary>
-/// A program that is running with open window(s) but is NOT pinned to the dock.
-/// Shown in the running-apps section (right of the separator), mirroring the
-/// Windows taskbar. Hovering shows the window-preview popup; there is no click action.
+/// A running program/window-group that is not pinned yet. It carries both the
+/// executable path and an optional AppUserModelID so packaged apps/PWAs can be
+/// pinned with a stable Windows shell identity.
 /// </summary>
 public class RunningAppViewModel : ViewModelBase
 {
     private Bitmap? _icon;
-    private bool _isRunning;
+    private bool _isRunning = true;
+    private int _iconSize = 48;
+    private bool _showRunningIndicator = true;
+    private bool _enableHoverMagnification = true;
+    private bool _showHoverLabel = true;
+    private string _pinToDockText = "Pin to Dock";
 
-    /// <summary>The owning executable path (used to group windows and load the icon).</summary>
     public string ExecutablePath { get; }
-
-    /// <summary>Display label for the tooltip (fallback to executable name).</summary>
     public string Label { get; }
+    public string IdentityKey { get; }
+    public string? AppUserModelId { get; }
+    public string? LaunchTarget { get; }
 
-    /// <summary>The icon bitmap to render (tinted when the icon tint is enabled).</summary>
+    /// <summary>Identity-specific icon cache key, usually the AUMID.</summary>
+    public string? IconCacheKey { get; set; }
+
     public Bitmap? Icon
     {
         get => _icon;
         set => SetProperty(ref _icon, value);
     }
 
-    /// <summary>The untinted icon bitmap, kept so the tint can be re-applied
-    /// when the tint color or toggle changes (these VMs persist between refreshes).</summary>
     public Bitmap? OriginalIcon { get; set; }
 
-    /// <summary>True while the app has at least one open window.</summary>
     public bool IsRunning
     {
         get => _isRunning;
-        set => SetProperty(ref _isRunning, value);
+        set
+        {
+            if (SetProperty(ref _isRunning, value))
+                OnPropertyChanged(nameof(IndicatorVisible));
+        }
     }
 
-    /// <summary>The icon render size in pixels (mirrors the dock's IconsSize setting).</summary>
-    private int _iconSize = 48;
     public int IconSize
     {
         get => _iconSize;
         set => SetProperty(ref _iconSize, value);
     }
 
-    public RunningAppViewModel(string executablePath, string label)
+    public bool ShowRunningIndicator
+    {
+        get => _showRunningIndicator;
+        set
+        {
+            if (SetProperty(ref _showRunningIndicator, value))
+                OnPropertyChanged(nameof(IndicatorVisible));
+        }
+    }
+
+    public bool IndicatorVisible => ShowRunningIndicator && IsRunning;
+
+    public bool EnableHoverMagnification
+    {
+        get => _enableHoverMagnification;
+        set => SetProperty(ref _enableHoverMagnification, value);
+    }
+
+    public bool ShowHoverLabel
+    {
+        get => _showHoverLabel;
+        set
+        {
+            if (SetProperty(ref _showHoverLabel, value))
+                OnPropertyChanged(nameof(TooltipText));
+        }
+    }
+
+    public string? TooltipText => ShowHoverLabel ? Label : null;
+
+    public string PinToDockText
+    {
+        get => _pinToDockText;
+        set => SetProperty(ref _pinToDockText, value);
+    }
+
+    public ICommand? PinCommand { get; set; }
+
+    public RunningAppViewModel(
+        string executablePath,
+        string label,
+        string identityKey,
+        string? appUserModelId = null)
     {
         ExecutablePath = executablePath;
         Label = label;
-        IsRunning = true;
+        IdentityKey = identityKey;
+        AppUserModelId = appUserModelId;
+        LaunchTarget = string.IsNullOrWhiteSpace(appUserModelId)
+            ? null
+            : $"shell:AppsFolder\\{appUserModelId}";
     }
 }

@@ -99,7 +99,14 @@ public partial class SettingsWindow
     private void OnCustomIconSelectionChanged()
     {
         if (DataContext is SettingsViewModel vm)
+        {
+            // SelectionChanged may be raised before the two-way binding has
+            // committed SelectedItemIndex. Use the ListBox as the immediate
+            // source of truth so the buttons respond on the very first click.
+            if (vm.SelectedItemIndex != ItemsList.SelectedIndex)
+                vm.SelectedItemIndex = ItemsList.SelectedIndex;
             vm.NotifyCustomIconSelectionChanged();
+        }
         RefreshCustomIconButtonStates();
     }
 }

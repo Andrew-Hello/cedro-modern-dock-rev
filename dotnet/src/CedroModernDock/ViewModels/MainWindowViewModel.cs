@@ -8,15 +8,16 @@ using System.Windows.Input;
 using Avalonia;
 using Avalonia.Media;
 using CedroModernDock.Core.Application;
+using CedroModernDock.Core.Domain;
 using CedroModernDock.Core.Models;
 using CedroModernDock.Infrastructure.Windows.Native;
 
 namespace CedroModernDock.ViewModels;
 
 /// <summary>
-/// Main dock ViewModel. Holds the dock items collection, appearance settings,
-/// and the running-app indicator watcher. Direct port of DockController's
-/// state and update logic, expressed as MVVM bindings.
+/// Main dock ViewModel. Holds pinned items, unpinned running apps, appearance
+/// preferences and running-window state. Enhanced builds also support pinning a
+/// live Windows app/PWA by its AppUserModelID.
 /// </summary>
 public partial class MainWindowViewModel : ViewModelBase
 {
@@ -30,8 +31,6 @@ public partial class MainWindowViewModel : ViewModelBase
     private string _statusText = "";
 
     public ObservableCollection<DockItemViewModel> Items { get; } = new();
-
-    /// <summary>Running-but-unpinned programs shown right of the separator (taskbar-like).</summary>
     public ObservableCollection<RunningAppViewModel> RunningApps { get; } = new();
 
     private bool _hasRunningApps;
@@ -63,14 +62,10 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Layout direction of the dock items (horizontal by default, vertical when enabled).</summary>
     public Avalonia.Layout.Orientation DockOrientation
         => IsVerticalDock ? Avalonia.Layout.Orientation.Vertical : Avalonia.Layout.Orientation.Horizontal;
 
-    /// <summary>Separator is only shown between pinned items and displayed unpinned running apps.</summary>
     public bool ShowHorizontalSeparator => HasRunningApps && !IsVerticalDock;
-
-    /// <summary>Separator is only shown between pinned items and displayed unpinned running apps.</summary>
     public bool ShowVerticalSeparator => HasRunningApps && IsVerticalDock;
 
     public int IconsSize
@@ -93,25 +88,27 @@ public partial class MainWindowViewModel : ViewModelBase
     public string StatusText { get => _statusText; set => SetProperty(ref _statusText, value); }
 
     public ICommand LaunchCommand { get; }
+    public ICommand PinRunningCommand { get; }
 
-    /// <summary>Set by MainWindow — opens the settings window with this window as owner.</summary>
     public Action? OpenSettingsAction { get; set; }
-
-    /// <summary>Set by MainWindow — re-anchors the dock after dock content/settings change.</summary>
     public Action? RepositionAction { get; set; }
-
-    /// <summary>Set by MainWindow — dismisses the window-preview popup (dock refresh).</summary>
     public Action? PreviewDismissAction { get; set; }
 
     public MainWindowViewModel()
     {
         LaunchCommand = new RelayCommand(_ => { });
+        PinRunningCommand = new RelayCommand(_ => { });
     }
 
     public MainWindowViewModel(AppServices appServices)
     {
         _appServices = appServices;
         LaunchCommand = new RelayCommand(param => ExecuteItem(param));
+        PinRunningCommand = new RelayCommand(param =>
+        {
+            if (param is RunningAppViewModel running)
+                PinRunningApp(running);
+        });
         _appServices.LocalizationService.AddListener(UpdateDockUI);
     }
 
@@ -127,13 +124,12 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (_appServices == null) return;
         IsVerticalDock = _appServices.AppearanceService.GetVerticalDock();
-        // The tint must be set BEFORE items are created: CreateItemViewModel
-        // tints each icon immediately, and a stale value would make every
-        // pinned item lag one color selection behind.
+
         var appearance = _appServices.AppearanceService;
         IconTinter.ActiveColor = appearance.GetTintIcons()
             ? ParseRgbColor(appearance.GetTintColorRGB())
             : null;
+
         Items.Clear();
         var dock = _appServices.DockService.GetDock();
         var loc = _appServices.LocalizationService;
@@ -143,15 +139,23 @@ public partial class MainWindowViewModel : ViewModelBase
             var vm = CreateItemViewModel(item, loc);
             if (vm != null)
             {
-                vm.IconSize = _appServices.AppearanceService.GetIconsSize();
+                vm.IconSize = appearance.GetIconsSize();
+                ApplyInteractionSettings(vm);
                 Items.Add(vm);
             }
         }
+
+        foreach (var app in RunningApps)
+        {
+            app.PinToDockText = loc.Text("dock.runningApp.pin");
+            app.PinCommand = PinRunningCommand;
+            ApplyInteractionSettings(app);
+        }
+
         ApplyAppearance();
         RepositionAction?.Invoke();
         PreviewDismissAction?.Invoke();
     }
-    // --- continued below ---
 
     private DockItemViewModel? CreateItemViewModel(DockItem item, LocalizationService loc)
     {
@@ -171,18 +175,26 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (item is DockProgramItemModel programItem)
         {
-            string? iconPath = _appServices!.IconGateway.ResolveProgramIcon(programItem.ExecutablePath);
-            var icon = IconLoader.LoadFromFile(iconPath);
-            var itemVm = new DockItemViewModel(item, label, LaunchCommand,
-                showIndicator: true, executablePath: programItem.ExecutablePath)
+            Bitmap? icon = null;
+            if (!string.IsNullOrWhiteSpace(programItem.IconCacheKey))
+            {
+                icon = IconLoader.LoadFromFile(
+                    WindowIdentityIconCache.GetCachedIconPath(programItem.IconCacheKey));
+            }
+
+            icon ??= IconLoader.LoadFromFile(
+                _appServices!.IconGateway.ResolveProgramIcon(programItem.ExecutablePath));
+
+            var itemVm = new DockItemViewModel(
+                item, label, LaunchCommand,
+                showIndicator: true,
+                executablePath: programItem.ExecutablePath,
+                appUserModelId: programItem.AppUserModelId)
             {
                 Icon = IconTinter.Apply(icon)
             };
 
-            // The icon may not be cached yet (first run with a new item). Extract it in the
-            // background, then push the resulting bitmap into the ViewModel so the dock
-            // updates without requiring a restart.
-            if (icon == null)
+            if (icon == null && !string.IsNullOrWhiteSpace(programItem.ExecutablePath))
             {
                 string exe = programItem.ExecutablePath;
                 _ = Task.Run(() =>
@@ -190,8 +202,15 @@ public partial class MainWindowViewModel : ViewModelBase
                     _appServices.IconGateway.CacheProgramIcon(exe);
                     string? cached = _appServices.IconGateway.ResolveProgramIcon(exe);
                     var loaded = IconLoader.LoadFromFile(cached);
+                    if (loaded == null)
+                    {
+                        WindowsIconExtractor.ExtractAndCacheAppxIcon(exe);
+                        loaded = IconLoader.LoadFromFile(
+                            _appServices.IconGateway.ResolveProgramIcon(exe));
+                    }
                     if (loaded != null)
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() => itemVm.Icon = IconTinter.Apply(loaded));
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                            itemVm.Icon = IconTinter.Apply(loaded));
                 });
             }
 
@@ -213,20 +232,44 @@ public partial class MainWindowViewModel : ViewModelBase
         return null;
     }
 
+    private void ApplyInteractionSettings(DockItemViewModel item)
+    {
+        if (_appServices == null) return;
+        var appearance = _appServices.AppearanceService;
+        item.ShowRunningIndicator = appearance.GetShowRunningIndicators();
+        item.EnableHoverMagnification = appearance.GetEnableHoverMagnification();
+        item.ShowHoverLabel = appearance.GetShowHoverLabels();
+    }
+
+    private void ApplyInteractionSettings(RunningAppViewModel item)
+    {
+        if (_appServices == null) return;
+        var appearance = _appServices.AppearanceService;
+        item.ShowRunningIndicator = appearance.GetShowRunningIndicators();
+        item.EnableHoverMagnification = appearance.GetEnableHoverMagnification();
+        item.ShowHoverLabel = appearance.GetShowHoverLabels();
+    }
+
     private void ApplyAppearance()
     {
         if (_appServices == null) return;
         var appearance = _appServices.AppearanceService;
 
         IconsSize = appearance.GetIconsSize();
+        foreach (var item in Items)
+        {
+            item.IconSize = IconsSize;
+            ApplyInteractionSettings(item);
+        }
         foreach (var app in RunningApps)
+        {
             app.IconSize = IconsSize;
+            ApplyInteractionSettings(app);
+        }
+
         Spacing = appearance.GetSpacingBetweenIcons();
         BorderRounding = appearance.GetDockBorderRounding();
 
-        // Re-tint the persistent running-apps VMs with the current tint
-        // (set in UpdateDockUI before items are created; pinned items are
-        // recreated on every refresh so they are tinted at creation).
         foreach (var app in RunningApps)
             app.Icon = IconTinter.Apply(app.OriginalIcon);
 
@@ -261,7 +304,8 @@ public partial class MainWindowViewModel : ViewModelBase
                 var loc = _appServices.LocalizationService;
                 System.Windows.Forms.MessageBox.Show(
                     loc.Text("dialog.programNotFound.message",
-                        programItem.Label, programItem.ExecutablePath),
+                        programItem.Label,
+                        programItem.LaunchTarget ?? programItem.ExecutablePath),
                     loc.Text("dialog.programNotFound.title"),
                     System.Windows.Forms.MessageBoxButtons.OK,
                     System.Windows.Forms.MessageBoxIcon.Warning);
@@ -286,7 +330,7 @@ public partial class MainWindowViewModel : ViewModelBase
                     await Task.Delay(1200, token);
                 }
                 catch (OperationCanceledException) { break; }
-                catch { /* keep watching */ }
+                catch { }
             }
         }, token);
     }
@@ -294,26 +338,30 @@ public partial class MainWindowViewModel : ViewModelBase
     private void RefreshIndicators()
     {
         if (_appServices == null) return;
-        var programItems = Items.Where(i => i.ShowIndicator && i.ExecutablePath != null).ToList();
+        if (!_appServices.AppearanceService.GetShowRunningIndicators())
+            return;
+
+        var programItems = Items
+            .Where(i => i.ShowIndicator &&
+                        (!string.IsNullOrWhiteSpace(i.ExecutablePath) ||
+                         !string.IsNullOrWhiteSpace(i.AppUserModelId)))
+            .ToList();
+
         foreach (var item in programItems)
         {
-            bool isOpen = _appServices.WindowPreviewService.HasOpenWindows(item.ExecutablePath);
+            bool isOpen = _appServices.WindowPreviewService.HasOpenWindows(
+                item.ExecutablePath, item.AppUserModelId);
             Avalonia.Threading.Dispatcher.UIThread.Post(() => item.IsRunning = isOpen);
         }
     }
 
-    private readonly Dictionary<string, RunningAppViewModel> _runningAppsByPath = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, RunningAppViewModel> _runningAppsByIdentity =
+        new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Syncs the running-apps section: taskbar-visible windows, grouped by executable,
-    /// minus programs already pinned in the dock. Only touches the UI when the set
-    /// actually changed, so the preview popup never flickers.
-    /// </summary>
     private void RefreshRunningApps()
     {
         if (_appServices == null) return;
 
-        // Feature toggle: only show unpinned running apps when enabled.
         if (!_appServices.AppearanceService.GetShowUnpinnedRunningApps())
         {
             if (RunningApps.Count > 0)
@@ -321,7 +369,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
                     RunningApps.Clear();
-                    _runningAppsByPath.Clear();
+                    _runningAppsByIdentity.Clear();
                     HasRunningApps = false;
                     RepositionAction?.Invoke();
                     PreviewDismissAction?.Invoke();
@@ -330,12 +378,12 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        List<string> pinnedPaths = Items
+        List<DockProgramItemModel> pinnedPrograms = Items
             .Where(i => i.Item is DockProgramItemModel)
-            .Select(i => ((DockProgramItemModel)i.Item).ExecutablePath)
+            .Select(i => (DockProgramItemModel)i.Item)
             .ToList();
 
-        List<CedroModernDock.Core.Domain.RunningWindowInfo> windows;
+        List<RunningWindowInfo> windows;
         try
         {
             windows = _appServices.WindowPreviewService.FindTaskbarWindows();
@@ -346,8 +394,8 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         var desired = windows
-            .GroupBy(w => w.ExecutablePath, StringComparer.OrdinalIgnoreCase)
-            .Where(g => !IsPinned(g.Key, pinnedPaths))
+            .GroupBy(GetRunningIdentity, StringComparer.OrdinalIgnoreCase)
+            .Where(g => !IsPinned(g.First(), pinnedPrograms))
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -356,28 +404,33 @@ public partial class MainWindowViewModel : ViewModelBase
 
             bool changed = false;
 
-            // Remove apps that closed or got pinned.
-            foreach (var path in _runningAppsByPath.Keys.ToList())
+            foreach (var identity in _runningAppsByIdentity.Keys.ToList())
             {
-                if (!desired.ContainsKey(path) || IsPinned(path, pinnedPaths))
+                if (!desired.TryGetValue(identity, out RunningWindowInfo? win) ||
+                    IsPinned(win, pinnedPrograms))
                 {
-                    RunningApps.Remove(_runningAppsByPath[path]);
-                    _runningAppsByPath.Remove(path);
+                    RunningApps.Remove(_runningAppsByIdentity[identity]);
+                    _runningAppsByIdentity.Remove(identity);
                     changed = true;
                 }
             }
 
-            // Add newly opened apps.
-            foreach (var (path, win) in desired)
+            foreach (var (identity, win) in desired)
             {
-                if (_runningAppsByPath.ContainsKey(path)) continue;
-                string label = System.IO.Path.GetFileNameWithoutExtension(path);
-                var vm = new RunningAppViewModel(path, label)
+                if (_runningAppsByIdentity.ContainsKey(identity))
+                    continue;
+
+                string label = ResolveRunningLabel(win);
+                var vm = new RunningAppViewModel(
+                    win.ExecutablePath, label, identity, win.AppUserModelId)
                 {
-                    IconSize = _appServices.AppearanceService.GetIconsSize()
+                    IconSize = _appServices.AppearanceService.GetIconsSize(),
+                    PinCommand = PinRunningCommand,
+                    PinToDockText = _appServices.LocalizationService.Text("dock.runningApp.pin")
                 };
+                ApplyInteractionSettings(vm);
                 LoadRunningIcon(vm, win.Handle);
-                _runningAppsByPath[path] = vm;
+                _runningAppsByIdentity[identity] = vm;
                 RunningApps.Add(vm);
                 changed = true;
             }
@@ -391,17 +444,99 @@ public partial class MainWindowViewModel : ViewModelBase
         });
     }
 
-    private static bool IsPinned(string executablePath, List<string> pinnedPaths)
+    private static string GetRunningIdentity(RunningWindowInfo window)
     {
-        string file = System.IO.Path.GetFileName(executablePath);
-        foreach (var pinned in pinnedPaths)
+        if (!string.IsNullOrWhiteSpace(window.AppUserModelId))
+            return $"aumid:{window.AppUserModelId}";
+        return $"exe:{window.ExecutablePath}";
+    }
+
+    private static string ResolveRunningLabel(RunningWindowInfo window)
+    {
+        if (!string.IsNullOrWhiteSpace(window.AppUserModelId))
         {
-            if (string.Equals(pinned, executablePath, StringComparison.OrdinalIgnoreCase))
+            string id = window.AppUserModelId;
+            bool likelyPackagedOrWebApp = id.Contains('!') ||
+                                           id.Contains(".App.", StringComparison.OrdinalIgnoreCase) ||
+                                           window.ExecutablePath.Contains("\\WindowsApps\\",
+                                               StringComparison.OrdinalIgnoreCase);
+            if (likelyPackagedOrWebApp && !string.IsNullOrWhiteSpace(window.Title))
+                return window.Title;
+        }
+
+        string label = Path.GetFileNameWithoutExtension(window.ExecutablePath);
+        return string.IsNullOrWhiteSpace(label) ? window.Title : label;
+    }
+
+    private static bool IsPinned(
+        RunningWindowInfo window,
+        List<DockProgramItemModel> pinnedPrograms)
+    {
+        if (!string.IsNullOrWhiteSpace(window.AppUserModelId))
+        {
+            return pinnedPrograms.Any(p =>
+                !string.IsNullOrWhiteSpace(p.AppUserModelId) &&
+                string.Equals(p.AppUserModelId, window.AppUserModelId,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+
+        string file = Path.GetFileName(window.ExecutablePath);
+        foreach (var pinned in pinnedPrograms)
+        {
+            if (!string.IsNullOrWhiteSpace(pinned.AppUserModelId))
+                continue;
+            if (string.Equals(pinned.ExecutablePath, window.ExecutablePath,
+                    StringComparison.OrdinalIgnoreCase))
                 return true;
-            if (string.Equals(System.IO.Path.GetFileName(pinned), file, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(Path.GetFileName(pinned.ExecutablePath), file,
+                    StringComparison.OrdinalIgnoreCase))
                 return true;
         }
         return false;
+    }
+
+    public void PinRunningAppByIdentity(string identityKey)
+    {
+        RunningAppViewModel? vm = RunningApps.FirstOrDefault(a =>
+            string.Equals(a.IdentityKey, identityKey, StringComparison.OrdinalIgnoreCase));
+        if (vm != null)
+            PinRunningApp(vm);
+    }
+
+    private void PinRunningApp(RunningAppViewModel vm)
+    {
+        if (_appServices == null)
+            return;
+
+        var existing = _appServices.DockService.GetItems()
+            .OfType<DockProgramItemModel>();
+        bool alreadyPinned = !string.IsNullOrWhiteSpace(vm.AppUserModelId)
+            ? existing.Any(p => string.Equals(p.AppUserModelId, vm.AppUserModelId,
+                StringComparison.OrdinalIgnoreCase))
+            : existing.Any(p => string.IsNullOrWhiteSpace(p.AppUserModelId) &&
+                string.Equals(p.ExecutablePath, vm.ExecutablePath,
+                    StringComparison.OrdinalIgnoreCase));
+        if (alreadyPinned)
+            return;
+
+        var item = new DockProgramItemModel(vm.Label, vm.ExecutablePath)
+        {
+            AppUserModelId = vm.AppUserModelId,
+            LaunchTarget = vm.LaunchTarget,
+            IconCacheKey = vm.IconCacheKey
+        };
+        _appServices.DockService.AddItem(item);
+
+        if (string.IsNullOrWhiteSpace(vm.IconCacheKey) &&
+            !string.IsNullOrWhiteSpace(vm.ExecutablePath))
+        {
+            _ = Task.Run(() => _appServices.IconGateway.CacheProgramIcon(vm.ExecutablePath));
+        }
+
+        _runningAppsByIdentity.Remove(vm.IdentityKey);
+        RunningApps.Remove(vm);
+        HasRunningApps = RunningApps.Count > 0;
+        UpdateDockUI();
     }
 
     private void LoadRunningIcon(RunningAppViewModel vm, IntPtr windowHandle)
@@ -409,10 +544,30 @@ public partial class MainWindowViewModel : ViewModelBase
         if (_appServices == null) return;
         string exe = vm.ExecutablePath;
 
-        // The actual Windows Settings app (SystemSettings.exe) carries no icon
-        // in its EXE and its UWP frame exposes none either, so its dock icon is
-        // hardcoded to the bundled Windows Settings asset.
-        if (string.Equals(System.IO.Path.GetFileName(exe),
+        bool packagedPath = exe.Contains("\\WindowsApps\\", StringComparison.OrdinalIgnoreCase);
+
+        // Desktop apps/PWAs with an explicit AUMID may share one executable.
+        // Prefer their window-specific icon cache before the generic EXE icon.
+        if (!packagedPath && !string.IsNullOrWhiteSpace(vm.AppUserModelId))
+        {
+            string key = vm.AppUserModelId;
+            string? identityPath = WindowIdentityIconCache.GetCachedIconPath(key);
+            var identityIcon = IconLoader.LoadFromFile(identityPath);
+            if (identityIcon == null && windowHandle != IntPtr.Zero)
+            {
+                identityPath = WindowIdentityIconCache.CaptureWindowIcon(key, windowHandle);
+                identityIcon = IconLoader.LoadFromFile(identityPath);
+            }
+            if (identityIcon != null)
+            {
+                vm.IconCacheKey = key;
+                vm.OriginalIcon = identityIcon;
+                vm.Icon = IconTinter.Apply(identityIcon);
+                return;
+            }
+        }
+
+        if (string.Equals(Path.GetFileName(exe),
                 "SystemSettings.exe", StringComparison.OrdinalIgnoreCase))
         {
             var settingsIcon = IconLoader.LoadFromAsset("Assets/icons/windows_settings.png");
@@ -431,10 +586,7 @@ public partial class MainWindowViewModel : ViewModelBase
             vm.Icon = IconTinter.Apply(icon);
             return;
         }
-        // Not cached yet — extract in the background and push when ready.
-        // Modern/UWP apps (Settings, etc.) carry no icon resource in the EXE
-        // and their frame window exposes none either; fall back to the running
-        // window's icon, then to the AppX package manifest logo.
+
         _ = Task.Run(() =>
         {
             try
@@ -461,7 +613,7 @@ public partial class MainWindowViewModel : ViewModelBase
                         vm.Icon = IconTinter.Apply(loaded);
                     });
             }
-            catch { /* best-effort */ }
+            catch { }
         });
     }
 

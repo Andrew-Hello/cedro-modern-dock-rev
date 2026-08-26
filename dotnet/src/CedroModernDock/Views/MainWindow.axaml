@@ -60,7 +60,7 @@
                                     ToolTip.Placement="Top"
                                     Classes.hoverMagnify="{Binding EnableHoverMagnification}"
                                     RenderTransformOrigin="50%, 50%"
-                                    PointerEntered="OnItemPointerEntered"
+                                    PointerEntered="OnConfiguredItemPointerEntered"
                                     PointerExited="OnItemPointerExited">
                                 <Button.Transitions>
                                     <Transitions>
@@ -132,7 +132,7 @@
                                     Classes.hoverMagnify="{Binding EnableHoverMagnification}"
                                     RenderTransformOrigin="50%, 50%"
                                     Click="OnRunningAppClicked"
-                                    PointerEntered="OnRunningAppPointerEntered"
+                                    PointerEntered="OnConfiguredRunningAppPointerEntered"
                                     PointerExited="OnItemPointerExited"
                                     PointerPressed="OnRunningAppDragPointerPressed"
                                     PointerMoved="OnRunningAppDragPointerMoved"

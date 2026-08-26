@@ -53,6 +53,7 @@
                                     Padding="4,2"
                                     Cursor="Hand"
                                     ToolTip.Tip="{Binding Label}"
+                                    ToolTip.Placement="Top"
                                     RenderTransformOrigin="50%, 50%"
                                     PointerEntered="OnItemPointerEntered"
                                     PointerExited="OnItemPointerExited">
@@ -122,6 +123,7 @@
                                     Padding="4,2"
                                     Cursor="Hand"
                                     ToolTip.Tip="{Binding Label}"
+                                    ToolTip.Placement="Top"
                                     RenderTransformOrigin="50%, 50%"
                                     Click="OnRunningAppClicked"
                                     PointerEntered="OnRunningAppPointerEntered"

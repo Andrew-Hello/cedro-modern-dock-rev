@@ -14,10 +14,10 @@ public class WindowPreviewService
     }
 
     public List<WindowInfo> LoadPreview(DockProgramItemModel item) =>
-        _windowQueryGateway.FindOpenWindows(item.ExecutablePath);
+        _windowQueryGateway.FindOpenWindows(item.ExecutablePath, item.AppUserModelId);
 
-    public bool HasOpenWindows(string? executablePath) =>
-        _windowQueryGateway.FindOpenWindows(executablePath).Count > 0;
+    public bool HasOpenWindows(string? executablePath, string? appUserModelId = null) =>
+        _windowQueryGateway.FindOpenWindows(executablePath, appUserModelId).Count > 0;
 
     public List<RunningWindowInfo> FindTaskbarWindows() =>
         _windowQueryGateway.FindTaskbarWindows();

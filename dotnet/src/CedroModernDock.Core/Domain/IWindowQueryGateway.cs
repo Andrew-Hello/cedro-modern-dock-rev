@@ -9,7 +9,7 @@ using CedroModernDock.Core.Application;
 /// </summary>
 public interface IWindowQueryGateway
 {
-    List<WindowInfo> FindOpenWindows(string? executablePath);
+    List<WindowInfo> FindOpenWindows(string? executablePath, string? appUserModelId = null);
     List<RunningWindowInfo> FindTaskbarWindows();
     void Activate(WindowInfo windowInfo);
     void Close(WindowInfo windowInfo);
@@ -18,5 +18,13 @@ public interface IWindowQueryGateway
 /// <summary>Minimal info required to activate and label a window.</summary>
 public sealed record WindowInfo(IntPtr Handle, string Title);
 
-/// <summary>Taskbar-visible window plus its owning executable path.</summary>
-public sealed record RunningWindowInfo(IntPtr Handle, string Title, string ExecutablePath);
+/// <summary>
+/// Taskbar-visible window plus its owning executable and optional stable Windows
+/// application identity. AppUserModelId lets the dock distinguish apps/PWAs
+/// that share one executable path.
+/// </summary>
+public sealed record RunningWindowInfo(
+    IntPtr Handle,
+    string Title,
+    string ExecutablePath,
+    string? AppUserModelId = null);

@@ -67,10 +67,11 @@ public partial class SettingsWindow
         buttons.Children.Add(exportConfig);
         buttons.Children.Add(importConfig);
 
-        // Window behavior is inserted at index 4 and occupies seven rows.
-        // Put configuration/backup immediately after it and before the static
-        // version/repository/acknowledgement metadata.
-        int insertAt = Math.Min(11, generalPanel.Children.Count);
+        // The original General page always ends with four static metadata rows:
+        // Acknowledgements, version, repository and contact. Insert the backup
+        // section immediately before those rows regardless of how many enhanced
+        // behavior/interaction controls were added above it.
+        int insertAt = Math.Max(0, generalPanel.Children.Count - 4);
         generalPanel.Children.Insert(insertAt++, heading);
         generalPanel.Children.Insert(insertAt++, helper);
         generalPanel.Children.Insert(insertAt, buttons);
@@ -174,8 +175,6 @@ public partial class SettingsWindow
                 UseShellExecute = true
             };
 
-            // Development runs may be hosted by dotnet.exe rather than the apphost.
-            // Preserve a working restart path in that case as well.
             if (string.Equals(Path.GetFileNameWithoutExtension(executable), "dotnet", StringComparison.OrdinalIgnoreCase))
             {
                 string? entryAssembly = Assembly.GetEntryAssembly()?.Location;
@@ -194,9 +193,6 @@ public partial class SettingsWindow
         }
         catch (Exception ex)
         {
-            // The imported config is already safely on disk, so if launching a
-            // replacement process fails the current instance stays open and the
-            // user can restart Cedro manually without losing the import.
             ShowConfigMessage(string.Format(vm.ImportFailedText, ex.Message), isError: true);
         }
     }

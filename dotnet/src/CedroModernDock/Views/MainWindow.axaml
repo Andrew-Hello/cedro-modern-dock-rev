@@ -16,6 +16,7 @@
         TransparencyLevelHint="Transparent"
         Background="Transparent"
         SizeToContent="WidthAndHeight"
+        PositionChanged="OnDynamicEdgePositionChanged"
         PointerPressed="OnPointerPressed">
 
     <Window.Resources>
@@ -27,9 +28,6 @@
     </Design.DataContext>
 
     <Grid>
-        <!-- Dock bar: compact rounded background with items.
-             Vertical padding is user-configurable; DockBackground is used as an
-             appearance-refresh signal so the converter re-reads the saved value. -->
         <Border x:Name="DockBar"
                 Background="{Binding DockBackground}"
                 CornerRadius="{Binding DockCornerRadius}"
@@ -39,7 +37,6 @@
                 ClipToBounds="False">
 
             <StackPanel Orientation="{Binding DockOrientation}" Spacing="{Binding Spacing}">
-                <!-- Pinned dock items -->
                 <ItemsControl ItemsSource="{Binding Items}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -59,13 +56,11 @@
                                     RenderTransformOrigin="50%, 50%"
                                     PointerEntered="OnItemPointerEntered"
                                     PointerExited="OnItemPointerExited">
-
                                 <Button.Transitions>
                                     <Transitions>
                                         <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
                                     </Transitions>
                                 </Button.Transitions>
-
                                 <Button.Styles>
                                     <Style Selector="Button">
                                         <Setter Property="RenderTransform" Value="scale(1)" />
@@ -80,7 +75,6 @@
                                         <Setter Property="Background" Value="Transparent" />
                                     </Style>
                                 </Button.Styles>
-
                                 <StackPanel Orientation="Vertical" Spacing="3"
                                             HorizontalAlignment="Center">
                                     <Image Source="{Binding Icon}"
@@ -97,7 +91,6 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <!-- Separator between pinned items and running apps -->
                 <Image Source="/Assets/icons/open-softwares-separator-1.png"
                        Width="14" Height="{Binding IconsSize}"
                        Stretch="Uniform"
@@ -114,7 +107,6 @@
                        IsVisible="{Binding ShowVerticalSeparator}"
                        RenderOptions.BitmapInterpolationMode="HighQuality"/>
 
-                <!-- Running-but-unpinned apps (taskbar-like) -->
                 <ItemsControl ItemsSource="{Binding RunningApps}"
                               IsVisible="{Binding HasRunningApps}">
                     <ItemsControl.ItemsPanel>
@@ -134,13 +126,11 @@
                                     Click="OnRunningAppClicked"
                                     PointerEntered="OnRunningAppPointerEntered"
                                     PointerExited="OnItemPointerExited">
-
                                 <Button.Transitions>
                                     <Transitions>
                                         <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
                                     </Transitions>
                                 </Button.Transitions>
-
                                 <Button.Styles>
                                     <Style Selector="Button">
                                         <Setter Property="RenderTransform" Value="scale(1)" />
@@ -155,7 +145,6 @@
                                         <Setter Property="Background" Value="Transparent" />
                                     </Style>
                                 </Button.Styles>
-
                                 <StackPanel Orientation="Vertical" Spacing="3"
                                             HorizontalAlignment="Center">
                                     <Image Source="{Binding Icon}"
@@ -174,8 +163,6 @@
             </StackPanel>
         </Border>
 
-        <!-- A small, permanently visible recovery handle for an auto-hidden dock.
-             Code-behind rotates/repositions it for the active screen edge. -->
         <Border x:Name="EdgeTail"
                 IsVisible="False"
                 Width="48" Height="10"

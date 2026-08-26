@@ -21,13 +21,17 @@ public class DockItemActionService
     }
 
     /// <summary>
-    /// Executes the dock item action. Returns true when the item was handled
-    /// (or launched), false when a program item could not be launched.
+    /// Executes the dock item action. Packaged apps/PWAs prefer their stable
+    /// Shell launch target and fall back to the executable path if necessary.
     /// </summary>
     public bool Execute(DockItem item, Action openSettingsAction)
     {
         if (item is DockProgramItemModel programItem)
         {
+            if (!string.IsNullOrWhiteSpace(programItem.LaunchTarget) &&
+                _programLauncher.Launch(programItem.LaunchTarget, programItem.Label))
+                return true;
+
             return _programLauncher.Launch(programItem.ExecutablePath, programItem.Label);
         }
 

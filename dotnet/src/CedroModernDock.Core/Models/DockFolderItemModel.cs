@@ -11,6 +11,9 @@ public class DockFolderItemModel : DockItem
     public string Label { get; set; } = "";
     public string Path { get; set; } = "";
 
+    [JsonPropertyName("customIconPngBase64")]
+    public string? CustomIconPngBase64 { get; set; }
+
     [JsonIgnore]
     public string FolderPath => Path;
 

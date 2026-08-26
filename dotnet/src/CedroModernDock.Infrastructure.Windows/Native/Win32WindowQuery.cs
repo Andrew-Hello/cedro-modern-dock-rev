@@ -4,41 +4,45 @@ using System.IO;
 namespace CedroModernDock.Infrastructure.Windows.Native;
 
 /// <summary>
-/// Direct port of the original Java NativeWindowUtils.
-/// Enumerates open top-level windows matching a given executable path,
-/// and activates (restores + foregrounds) a specific window.
+/// Enumerates taskbar/open windows and activates them. Enhanced builds resolve
+/// AppUserModelID as well as executable paths so packaged Windows apps and
+/// desktop PWAs that share a host executable can keep distinct identities.
 /// </summary>
 public static class Win32WindowQuery
 {
     /// <summary>Minimal info required to activate and label a window.</summary>
     public sealed record WindowInfo(IntPtr Handle, string Title);
 
-    /// <summary>Taskbar-visible window with its owning executable path.</summary>
-    public sealed record RunningWindowInfo(IntPtr Handle, string Title, string ExecutablePath);
+    /// <summary>Taskbar-visible window with its owning executable and optional AUMID.</summary>
+    public sealed record RunningWindowInfo(
+        IntPtr Handle,
+        string Title,
+        string ExecutablePath,
+        string? AppUserModelId = null);
 
-    // For UWP/AppX apps the visible top-level window is an ApplicationFrameHost
-    // frame whose real app exe is found in a child CoreWindow. When the app is
-    // minimized Windows reparents that child away, so the lookup fails and the
-    // entry would flip to ApplicationFrameHost.exe (losing its label and icon).
-    // Cache the resolved app exe per frame HWND so it stays stable across
-    // minimize/restore; entries are pruned when the frame window goes away.
+    // For UWP/AppX apps the visible top-level window can be an
+    // ApplicationFrameHost frame whose real app process lives in a child
+    // CoreWindow. When minimized, that child can be temporarily reparented;
+    // cache both path and app identity per frame HWND to keep the dock stable.
     private static readonly Dictionary<IntPtr, string> _frameAppExeCache = new();
+    private static readonly Dictionary<IntPtr, string> _frameAppIdCache = new();
 
     /// <summary>
-    /// Enumerates all visible top-level windows that would appear in the Windows
-    /// taskbar, returning each with its owning executable path. Mirrors the
-    /// taskbar's own filter: visible, titled, not a tool window, and either an
-    /// app window or unowned. Excludes cloaked (Win+D hidden) windows.
+    /// Enumerates visible taskbar windows and resolves a stable app identity
+    /// where Windows exposes one.
     /// </summary>
     public static List<RunningWindowInfo> GetTaskbarWindows()
     {
         var windows = new List<RunningWindowInfo>();
 
-        // Prune cached UWP frame→app mappings for frames that no longer exist.
-        foreach (var handle in _frameAppExeCache.Keys.ToList())
+        foreach (var handle in _frameAppExeCache.Keys
+                     .Concat(_frameAppIdCache.Keys).Distinct().ToList())
         {
             if (!User32.IsWindow(handle))
+            {
                 _frameAppExeCache.Remove(handle);
+                _frameAppIdCache.Remove(handle);
+            }
         }
 
         User32.EnumWindows((hWnd, _) =>
@@ -58,12 +62,9 @@ public static class Win32WindowQuery
         if (!User32.IsWindowVisible(hWnd))
             return false;
 
-        // Skip cloaked windows (hidden by Win+D / minimized to taskbar).
         if (DwmThumbnailInterop.IsCloaked(hWnd))
             return false;
 
-        // Skip the desktop window ("Program Manager", class Progman) and other
-        // explorer-owned shell surfaces that never appear in the real taskbar.
         if (IsProgman(hWnd))
             return false;
 
@@ -71,7 +72,6 @@ public static class Win32WindowQuery
         if ((exStyle & Win32Constants.WS_EX_TOOLWINDOW) != 0)
             return false;
 
-        // Taskbar apps: either explicitly an app window or an unowned window.
         IntPtr owner = User32.GetWindow(hWnd, Win32Constants.GW_OWNER);
         if ((exStyle & Win32Constants.WS_EX_APPWINDOW) == 0 && owner != IntPtr.Zero)
             return false;
@@ -86,11 +86,10 @@ public static class Win32WindowQuery
         if (string.IsNullOrEmpty(executablePath))
             return false;
 
-        // UWP/AppX apps: the visible window belongs to ApplicationFrameHost,
-        // but the actual app runs in a child CoreWindow. Use the child's
-        // executable so the dock groups, labels and icons it as the real app.
-        if (string.Equals(System.IO.Path.GetFileName(executablePath),
-                "ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase))
+        bool isFrameHost = string.Equals(Path.GetFileName(executablePath),
+            "ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase);
+
+        if (isFrameHost)
         {
             string? appPath = GetChildProcessExePath(hWnd, executablePath);
             if (!string.IsNullOrEmpty(appPath))
@@ -100,14 +99,41 @@ public static class Win32WindowQuery
             }
             else if (_frameAppExeCache.TryGetValue(hWnd, out string? cached))
             {
-                // Minimized frames lose their CoreWindow child, so fall back to
-                // the previously resolved app to keep label/icon stable.
                 executablePath = cached;
             }
         }
 
-        info = new RunningWindowInfo(hWnd, title, executablePath);
+        string? appUserModelId = GetEffectiveAppUserModelId(hWnd, isFrameHost);
+        info = new RunningWindowInfo(hWnd, title, executablePath, appUserModelId);
         return true;
+    }
+
+    private static string? GetEffectiveAppUserModelId(IntPtr hWnd, bool? knownFrameHost = null)
+    {
+        string? direct = WindowAppIdentity.TryGetAppUserModelId(hWnd);
+        if (!string.IsNullOrWhiteSpace(direct))
+        {
+            if (knownFrameHost == true)
+                _frameAppIdCache[hWnd] = direct;
+            return direct;
+        }
+
+        bool isFrameHost = knownFrameHost ?? string.Equals(
+            Path.GetFileName(GetProcessPath(hWnd)),
+            "ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase);
+
+        if (!isFrameHost)
+            return null;
+
+        string? childId = GetChildAppUserModelId(hWnd);
+        if (!string.IsNullOrWhiteSpace(childId))
+        {
+            _frameAppIdCache[hWnd] = childId;
+            return childId;
+        }
+
+        return _frameAppIdCache.TryGetValue(hWnd, out string? cachedId)
+            ? cachedId : null;
     }
 
     /// <summary>
@@ -124,6 +150,22 @@ public static class Win32WindowQuery
                 !string.Equals(path, framePath, StringComparison.OrdinalIgnoreCase))
             {
                 result = path;
+                return false;
+            }
+            return true;
+        }, IntPtr.Zero);
+        return result;
+    }
+
+    private static string? GetChildAppUserModelId(IntPtr hWnd)
+    {
+        string? result = null;
+        User32.EnumChildWindows(hWnd, (child, _) =>
+        {
+            string? id = WindowAppIdentity.TryGetAppUserModelId(child);
+            if (!string.IsNullOrWhiteSpace(id))
+            {
+                result = id;
                 return false;
             }
             return true;
@@ -155,16 +197,21 @@ public static class Win32WindowQuery
     }
 
     /// <summary>
-    /// Returns all visible top-level windows whose owning process image path
-    /// matches <paramref name="executablePath"/>.
+    /// Returns all visible top-level windows matching either a stable AUMID
+    /// (preferred) or the executable path. AUMID matching is essential for
+    /// packaged apps and installed web apps that can share a host executable.
     /// </summary>
-    public static List<WindowInfo> GetOpenWindows(string? executablePath)
+    public static List<WindowInfo> GetOpenWindows(
+        string? executablePath,
+        string? appUserModelId = null)
     {
         var windows = new List<WindowInfo>();
-        if (string.IsNullOrEmpty(executablePath))
+        bool useAppId = !string.IsNullOrWhiteSpace(appUserModelId);
+        if (!useAppId && string.IsNullOrEmpty(executablePath))
             return windows;
 
-        var targetPath = NormalizePath(executablePath);
+        string? targetPath = string.IsNullOrEmpty(executablePath)
+            ? null : NormalizePath(executablePath);
 
         User32.EnumWindows((hWnd, _) =>
         {
@@ -174,25 +221,16 @@ public static class Win32WindowQuery
             var titleBuilder = new StringBuilder(1024);
             User32.GetWindowText(hWnd, titleBuilder, 1024);
             string title = titleBuilder.ToString().Trim();
-
-            // Skip hidden/invisible windows that report visible but have empty titles.
             if (string.IsNullOrEmpty(title))
                 return true;
 
-            // Skip the desktop window ("Program Manager", class Progman): it belongs
-            // to explorer.exe but must never be listed as an open window.
             if (IsProgman(hWnd))
                 return true;
 
-            // Skip tool windows: they never appear in the taskbar, and the dock's
-            // own windows (the dock bar and the preview popup) are tool windows.
             int exStyle = User32.GetWindowLongPtr(hWnd, Win32Constants.GWL_EXSTYLE).ToInt32();
             if ((exStyle & Win32Constants.WS_EX_TOOLWINDOW) != 0)
                 return true;
 
-            // Skip IME helper windows ("Default IME" / "MSCTFIME UI"): they belong
-            // to the same process as the app (e.g. UWP apps like Windows Settings)
-            // but are invisible input plumbing, never app windows to show or open.
             var className = new StringBuilder(256);
             User32.GetClassName(hWnd, className, 256);
             string cls = className.ToString().Trim();
@@ -200,8 +238,24 @@ public static class Win32WindowQuery
                 string.Equals(cls, "MSCTFIME UI", StringComparison.OrdinalIgnoreCase))
                 return true;
 
-            if (IsWindowFromExecutable(hWnd, targetPath))
-                windows.Add(new WindowInfo(ResolveOpenWindow(hWnd, title), title));
+            bool matches;
+            if (useAppId)
+            {
+                string? candidateId = GetEffectiveAppUserModelId(hWnd);
+                matches = string.Equals(candidateId, appUserModelId,
+                    StringComparison.OrdinalIgnoreCase);
+            }
+            else
+            {
+                matches = targetPath != null && IsWindowFromExecutable(hWnd, targetPath);
+            }
+
+            if (matches)
+            {
+                IntPtr resolved = ResolveOpenWindow(hWnd, title);
+                if (!windows.Any(w => w.Handle == resolved))
+                    windows.Add(new WindowInfo(resolved, title));
+            }
 
             return true;
         }, IntPtr.Zero);
@@ -211,10 +265,8 @@ public static class Win32WindowQuery
 
     /// <summary>
     /// For UWP/AppX apps the visible top-level window belongs to
-    /// ApplicationFrameHost, while the CoreWindow matching the app's exe is
-    /// cloaked by the shell. A cloaked window cannot be shown or activated, so
-    /// the preview/activation target is resolved to the ApplicationFrameHost
-    /// frame that hosts the same titled window.
+    /// ApplicationFrameHost, while a matching CoreWindow may be cloaked. Resolve
+    /// activation/preview to the visible frame that hosts the same titled window.
     /// </summary>
     private static IntPtr ResolveOpenWindow(IntPtr hWnd, string title)
     {
@@ -224,7 +276,6 @@ public static class Win32WindowQuery
         return hWnd;
     }
 
-    /// <summary>Finds a visible, non-cloaked ApplicationFrameHost frame with the given title.</summary>
     private static IntPtr FindFrameWithTitle(string title)
     {
         IntPtr result = IntPtr.Zero;
@@ -241,7 +292,7 @@ public static class Win32WindowQuery
                 return true;
 
             string? path = GetProcessPath(hWnd);
-            if (!string.Equals(System.IO.Path.GetFileName(path),
+            if (!string.Equals(Path.GetFileName(path),
                     "ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase))
                 return true;
 
@@ -266,7 +317,6 @@ public static class Win32WindowQuery
             "Progman", StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>Restores the window if minimized and brings it to the foreground.</summary>
     public static void ActivateWindow(IntPtr hwnd)
     {
         if (hwnd == IntPtr.Zero)
@@ -276,10 +326,6 @@ public static class Win32WindowQuery
         User32.SetForegroundWindow(hwnd);
     }
 
-    /// <summary>
-    /// Asks the window to close by posting WM_CLOSE (the same message the
-    /// taskbar sends), giving the app a chance to prompt before closing.
-    /// </summary>
     public static void CloseWindow(IntPtr hwnd)
     {
         if (hwnd == IntPtr.Zero)
@@ -320,11 +366,9 @@ public static class Win32WindowQuery
         if (string.IsNullOrEmpty(processPath) || string.IsNullOrEmpty(targetPath))
             return false;
 
-        // Exact, case-insensitive path match (Windows paths are case-insensitive).
         if (string.Equals(processPath, targetPath, StringComparison.OrdinalIgnoreCase))
             return true;
 
-        // Fallback: match only the filename when the full path isn't comparable.
         string processFile = Path.GetFileName(processPath);
         string targetFile = Path.GetFileName(targetPath);
         return string.Equals(processFile, targetFile, StringComparison.OrdinalIgnoreCase);
@@ -333,7 +377,6 @@ public static class Win32WindowQuery
     private static string NormalizePath(string path)
     {
         path = Path.GetFullPath(path).Trim();
-        // Strip Windows extended-length path prefix if present.
         if (path.StartsWith(@"\\?\", StringComparison.Ordinal))
             path = path[4..];
         return path;

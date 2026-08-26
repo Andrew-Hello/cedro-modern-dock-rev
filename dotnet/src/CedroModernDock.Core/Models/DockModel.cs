@@ -44,11 +44,26 @@ public class DockModel
     public bool AlwaysOnTop { get; set; } = true;
 
     /// <summary>
-    /// When enabled, the dock snaps to the selected screen edge and auto-hides,
-    /// leaving only a narrow reveal strip until the pointer touches that edge.
+    /// Enables edge docking and auto-hide. Static positioning uses its configured
+    /// anchor; dynamic positioning snaps to an eligible edge when the user drags
+    /// the dock close enough and releases it.
     /// </summary>
     [JsonPropertyName("autoHideAtScreenEdge")]
     public bool AutoHideAtScreenEdge { get; set; }
+
+    /// <summary>
+    /// Dynamic-mode edge docking state. Side encoding: 0=None, 1=Top,
+    /// 2=Bottom, 3=Left, 4=Right. The offset is the visible dock's along-edge
+    /// distance in pixels from the monitor's top/left origin.
+    /// </summary>
+    [JsonPropertyName("dynamicEdgeDocked")]
+    public bool DynamicEdgeDocked { get; set; }
+
+    [JsonPropertyName("dynamicEdgeSide")]
+    public int DynamicEdgeSide { get; set; }
+
+    [JsonPropertyName("dynamicEdgeOffset")]
+    public int DynamicEdgeOffset { get; set; }
 
     private double _dockTransparency = 0.3;
     [JsonPropertyName("dockTransparency")]

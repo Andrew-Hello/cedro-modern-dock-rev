@@ -21,7 +21,6 @@ public partial class MainWindow
 
     private AppBarReservationManager? _appBarManager;
     private IntPtr _appBarHwnd;
-    private bool _appBarRefreshRequested = true;
 
     private void OnAppBarOpened(object? sender, EventArgs e)
     {
@@ -37,11 +36,7 @@ public partial class MainWindow
 
         // Wait until Avalonia has completed the first SizeToContent pass and the
         // existing Dock positioning code has applied its saved anchor.
-        Dispatcher.UIThread.Post(() =>
-        {
-            _appBarRefreshRequested = true;
-            RefreshAppBarPolicy();
-        }, DispatcherPriority.Loaded);
+        Dispatcher.UIThread.Post(RefreshAppBarPolicy, DispatcherPriority.Loaded);
     }
 
     private void OnAppBarClosed(object? sender, EventArgs e)
@@ -57,7 +52,6 @@ public partial class MainWindow
         }
 
         _appBarHwnd = IntPtr.Zero;
-        _appBarRefreshRequested = true;
     }
 
     private void OnAppBarPolicyTick(object? sender, EventArgs e)
@@ -65,14 +59,12 @@ public partial class MainWindow
 
     private void OnAppBarShellPositionChanged()
     {
-        // The callback is delivered through the Dock HWND's native message loop.
-        // Post rather than recursively calling SHAppBarMessage from inside that
-        // callback, which also keeps taskbar moves/resizes free of re-entrancy.
-        Dispatcher.UIThread.Post(() =>
-        {
-            _appBarRefreshRequested = true;
-            RefreshAppBarPolicy();
-        });
+        // The Shell broadcasts ABN_POSCHANGED whenever an AppBar moves. Cedro
+        // deliberately does not force another ABM_SETPOS for an unchanged
+        // geometry: doing so could make our own SetPos generate another callback
+        // indefinitely. The normal Update comparison still re-queries whenever
+        // the taskbar/work area, monitor, edge or Dock thickness actually changes.
+        Dispatcher.UIThread.Post(RefreshAppBarPolicy);
     }
 
     private void RefreshAppBarPolicy()
@@ -132,8 +124,7 @@ public partial class MainWindow
             monitor,
             safeWork,
             thickness,
-            force: _appBarRefreshRequested);
-        _appBarRefreshRequested = false;
+            force: false);
 
         if (!updated)
         {
@@ -247,7 +238,6 @@ public partial class MainWindow
             return;
 
         _appBarManager.Remove();
-        _appBarRefreshRequested = true;
 
         // Static positioning may have been adjusted by the AppBar boundary.
         // Re-resolve once after the Shell restores the normal work area.

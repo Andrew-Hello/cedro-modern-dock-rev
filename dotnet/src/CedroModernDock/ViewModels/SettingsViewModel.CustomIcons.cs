@@ -7,10 +7,10 @@ using CedroModernDock.Infrastructure.Windows.Native;
 namespace CedroModernDock.ViewModels;
 
 /// <summary>
-/// Per-item custom icon override management. The selected image or Windows
-/// system-library icon is normalized to PNG, persisted inside config.json as
-/// Base64, and cached under AppData for fast loading. This keeps the existing
-/// JSON export/import workflow portable.
+/// Per-item custom icon override management. Imported image/ICO files continue
+/// to be normalized into portable PNG/Base64 data, while Windows system-library
+/// selections are persisted compactly as resource Source + Icon Index and are
+/// dynamically extracted at runtime.
 /// </summary>
 public partial class SettingsViewModel
 {
@@ -23,7 +23,7 @@ public partial class SettingsViewModel
         {
             if (!CanCustomizeIcon) return false;
             DockItem item = _appServices.DockService.GetItems()[SelectedItemIndex];
-            return !string.IsNullOrWhiteSpace(item.CustomIconPngBase64);
+            return CustomDockIconResolver.HasOverride(item);
         }
     }
 
@@ -41,6 +41,17 @@ public partial class SettingsViewModel
     public string SystemIconPickerLoaded => T("settings.icons.customIcon.systemPicker.loaded");
     public string SystemIconPickerFailed => T("settings.icons.customIcon.systemPicker.failed");
     public string SystemIconPickerCancel => T("settings.icons.customIcon.systemPicker.cancel");
+    public string SystemIconPickerLibraryLabel => T("settings.icons.customIcon.systemPicker.libraryLabel");
+    public string SystemIconPickerNoLibraries => T("settings.icons.customIcon.systemPicker.noLibraries");
+
+    public string SystemIconCategoryName(string category) => category switch
+    {
+        "common" => T("settings.icons.customIcon.systemPicker.category.common"),
+        "devices" => T("settings.icons.customIcon.systemPicker.category.devices"),
+        "network" => T("settings.icons.customIcon.systemPicker.category.network"),
+        "classic" => T("settings.icons.customIcon.systemPicker.category.classic"),
+        _ => T("settings.icons.customIcon.systemPicker.category.other")
+    };
 
     /// <summary>Called when the dock item selection changes.</summary>
     public void NotifyCustomIconSelectionChanged()
@@ -49,23 +60,17 @@ public partial class SettingsViewModel
         OnPropertyChanged(nameof(CanResetCustomIcon));
     }
 
-    /// <summary>
-    /// Replaces the settings-list preview icon for every item that has an
-    /// override. The main RefreshItemLabels method can stay focused on legacy
-    /// automatic icons while this partial layer applies enhanced overrides.
-    /// </summary>
+    /// <summary>Applies either type of custom icon to rows in the settings list.</summary>
     public void ApplyCustomIconPreviews()
     {
         var items = _appServices.DockService.GetItems();
         int count = Math.Min(items.Count, ItemEntries.Count);
         for (int i = 0; i < count; i++)
         {
-            string? data = items[i].CustomIconPngBase64;
-            if (string.IsNullOrWhiteSpace(data))
+            if (!CustomDockIconResolver.HasOverride(items[i]))
                 continue;
 
-            string? path = CustomIconStore.EnsureCached(data);
-            Bitmap? icon = IconLoader.LoadFromFile(path);
+            Bitmap? icon = CustomDockIconResolver.Resolve(items[i], 128);
             if (icon != null)
                 ItemEntries[i] = new DockItemListEntry(ItemEntries[i].Label, icon);
         }
@@ -97,7 +102,7 @@ public partial class SettingsViewModel
 
             string source = files[0].Path.LocalPath;
             string newData = CustomIconStore.ImportAsPngBase64(source);
-            ApplyCustomIconOverride(newData);
+            ApplyCustomImageOverride(newData);
         }
         catch (Exception ex)
         {
@@ -105,12 +110,8 @@ public partial class SettingsViewModel
         }
     }
 
-    /// <summary>
-    /// Applies already-normalized PNG Base64 data from any icon source. The
-    /// SHELL32 picker uses this same path as normal image imports, so system
-    /// icons inherit portability, caching and reset semantics automatically.
-    /// </summary>
-    public void ApplyCustomIconOverride(string newData)
+    /// <summary>Applies a user-imported image/ICO override and clears any system reference.</summary>
+    public void ApplyCustomImageOverride(string newData)
     {
         if (!CanCustomizeIcon || string.IsNullOrWhiteSpace(newData))
             return;
@@ -119,18 +120,49 @@ public partial class SettingsViewModel
         {
             DockItem item = _appServices.DockService.GetItems()[SelectedItemIndex];
             string? oldData = item.CustomIconPngBase64;
+
             item.CustomIconPngBase64 = newData;
+            item.CustomSystemIconSource = null;
+            item.CustomSystemIconIndex = null;
             _appServices.DockService.SaveChanges();
 
             if (!string.IsNullOrWhiteSpace(oldData) && oldData != newData)
                 CustomIconStore.DeleteCached(oldData);
 
-            string? cachedPath = CustomIconStore.EnsureCached(newData);
-            Bitmap? icon = IconLoader.LoadFromFile(cachedPath);
-            if (icon != null && SelectedItemIndex < ItemEntries.Count)
-                ItemEntries[SelectedItemIndex] = new DockItemListEntry(
-                    ItemEntries[SelectedItemIndex].Label, icon);
+            UpdateSelectedCustomIconPreview(item);
+            NotifyCustomIconSelectionChanged();
+            _dockRefreshAction();
+        }
+        catch (Exception ex)
+        {
+            ShowCustomIconError(ex.Message);
+        }
+    }
 
+    /// <summary>
+    /// Applies a Windows library reference directly. No Microsoft icon bytes are
+    /// stored in config.json or copied into Cedro's persistent custom-icon cache.
+    /// </summary>
+    public void ApplySystemIconOverride(SystemIconSelection selection)
+    {
+        if (!CanCustomizeIcon || selection.IconIndex < 0 ||
+            string.IsNullOrWhiteSpace(selection.SourceExpression))
+            return;
+
+        try
+        {
+            DockItem item = _appServices.DockService.GetItems()[SelectedItemIndex];
+            string? oldData = item.CustomIconPngBase64;
+
+            item.CustomIconPngBase64 = null;
+            item.CustomSystemIconSource = selection.SourceExpression;
+            item.CustomSystemIconIndex = selection.IconIndex;
+            _appServices.DockService.SaveChanges();
+
+            if (!string.IsNullOrWhiteSpace(oldData))
+                CustomIconStore.DeleteCached(oldData);
+
+            UpdateSelectedCustomIconPreview(item);
             NotifyCustomIconSelectionChanged();
             _dockRefreshAction();
         }
@@ -148,7 +180,10 @@ public partial class SettingsViewModel
         int selectedIndex = SelectedItemIndex;
         DockItem item = _appServices.DockService.GetItems()[selectedIndex];
         string? oldData = item.CustomIconPngBase64;
+
         item.CustomIconPngBase64 = null;
+        item.CustomSystemIconSource = null;
+        item.CustomSystemIconIndex = null;
         _appServices.DockService.SaveChanges();
         CustomIconStore.DeleteCached(oldData);
 
@@ -157,6 +192,14 @@ public partial class SettingsViewModel
             SelectedItemIndex = selectedIndex;
         ApplyCustomIconPreviews();
         _dockRefreshAction();
+    }
+
+    private void UpdateSelectedCustomIconPreview(DockItem item)
+    {
+        Bitmap? icon = CustomDockIconResolver.Resolve(item, 128);
+        if (icon != null && SelectedItemIndex >= 0 && SelectedItemIndex < ItemEntries.Count)
+            ItemEntries[SelectedItemIndex] = new DockItemListEntry(
+                ItemEntries[SelectedItemIndex].Label, icon);
     }
 
     private void ShowCustomIconError(string details)

@@ -169,10 +169,19 @@ public partial class SettingsWindow
         foreach (CheckBox checkBox in this.GetVisualDescendants().OfType<CheckBox>())
         {
             string content = checkBox.Content?.ToString() ?? string.Empty;
-            if (content == vm.ArrangeVerticalText ||
-                content == vm.HorizontalEdgeAutoHideTitle ||
-                content == vm.VerticalEdgeAutoHideTitle)
+            if (content == vm.ArrangeVerticalText)
             {
+                checkBox.IsChecked = vm.IsVerticalDock;
+                checkBox.IsEnabled = !isBottomAppBar;
+            }
+            else if (content == vm.HorizontalEdgeAutoHideTitle)
+            {
+                checkBox.IsChecked = vm.AutoHideAtHorizontalEdges;
+                checkBox.IsEnabled = !isBottomAppBar;
+            }
+            else if (content == vm.VerticalEdgeAutoHideTitle)
+            {
+                checkBox.IsChecked = vm.AutoHideAtVerticalEdges;
                 checkBox.IsEnabled = !isBottomAppBar;
             }
         }

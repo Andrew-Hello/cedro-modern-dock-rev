@@ -78,6 +78,14 @@ public class DockAppearanceService
         _dockService.SaveChanges();
     }
 
+    public bool GetReserveDesktopSpace() => GetDock().ReserveDesktopSpace;
+
+    public void SetReserveDesktopSpace(bool value)
+    {
+        GetDock().ReserveDesktopSpace = value;
+        _dockService.SaveChanges();
+    }
+
     /// <summary>
     /// Legacy aggregate getter kept for runtime callers: true when either
     /// top/bottom or left/right edge auto-hide is enabled.

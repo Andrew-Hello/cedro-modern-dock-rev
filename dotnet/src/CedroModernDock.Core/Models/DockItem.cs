@@ -1,6 +1,5 @@
 namespace CedroModernDock.Core.Models;
 
-using System.Globalization;
 using System.Text.Json.Serialization;
 
 /// <summary>
@@ -22,13 +21,25 @@ public interface DockItem
     string Path { get; set; }
 
     /// <summary>
-    /// Optional user-selected icon override, stored as normalized PNG bytes in
-    /// Base64. Keeping the bytes in config.json makes exported configurations
-    /// self-contained and portable to another PC; the Windows UI materializes a
-    /// cached copy under %APPDATA%\CedroModernDock\customIcons at runtime.
+    /// Optional user-imported image/icon override, stored as normalized PNG
+    /// bytes in Base64. This remains the portable representation for PNG/ICO/
+    /// JPG/etc. files selected by the user.
     /// </summary>
     [JsonPropertyName("customIconPngBase64")]
     string? CustomIconPngBase64 { get; set; }
+
+    /// <summary>
+    /// Optional Windows resource-library expression such as
+    /// %SystemRoot%\System32\SHELL32.dll. System-library overrides intentionally
+    /// store source + ordinal instead of copying Microsoft icon bytes into the
+    /// configuration file.
+    /// </summary>
+    [JsonPropertyName("customSystemIconSource")]
+    string? CustomSystemIconSource { get; set; }
+
+    /// <summary>Zero-based icon ordinal within <see cref="CustomSystemIconSource"/>.</summary>
+    [JsonPropertyName("customSystemIconIndex")]
+    int? CustomSystemIconIndex { get; set; }
 
     /// <summary>Not serialized — resolved from the concrete type.</summary>
     [JsonIgnore]

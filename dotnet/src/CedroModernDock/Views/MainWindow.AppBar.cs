@@ -1,5 +1,6 @@
 using System;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Platform;
 using Avalonia.Threading;
 using CedroModernDock.Core.Models;
@@ -13,7 +14,7 @@ namespace CedroModernDock.Views;
 ///
 /// This intentionally has no periodic Shell polling and no ABN_POSCHANGED
 /// callback loop. The Shell is touched only when entering/leaving the mode or
-/// after a debounced Dock UI refresh changes the final native height.
+/// after a debounced real Dock height change.
 /// </summary>
 public partial class MainWindow
 {
@@ -39,11 +40,11 @@ public partial class MainWindow
         _bottomAppBarHooksInstalled = true;
         _appBarManager = new AppBarReservationManager(_appBarHwnd);
         _bottomAppBarLayoutTimer.Tick += OnBottomAppBarLayoutTimerTick;
+        SizeChanged += OnBottomAppBarSizeChanged;
 
-        // Avalonia raises the XAML Opened event from base.OnOpened(). The main
-        // window override continues afterwards and temporarily installs the
-        // legacy ApplyDockPosition callback. Post this work to Loaded priority so
-        // our mode-aware routing wins only after that initialization is complete.
+        // The MainWindow override installs this same mode-aware callback during
+        // its own initialization. Post once as a defensive guarantee for older
+        // view-model initialization order; this has no Shell side effects.
         Dispatcher.UIThread.Post(() =>
         {
             if (!_bottomAppBarHooksInstalled)
@@ -56,6 +57,7 @@ public partial class MainWindow
 
     private void OnBottomAppBarWindowClosed(object? sender, EventArgs e)
     {
+        SizeChanged -= OnBottomAppBarSizeChanged;
         _bottomAppBarLayoutTimer.Stop();
         _bottomAppBarLayoutTimer.Tick -= OnBottomAppBarLayoutTimerTick;
 
@@ -63,6 +65,18 @@ public partial class MainWindow
         _appBarManager = null;
         _appBarHwnd = IntPtr.Zero;
         _bottomAppBarHooksInstalled = false;
+    }
+
+    /// <summary>
+    /// Actual SizeToContent changes are the authoritative height signal. This
+    /// covers vertical padding, icon size, running-indicator visibility and any
+    /// future item-layout change. In Bottom AppBar mode it merely restarts a
+    /// short debounce timer; it never registers/query-positions an AppBar here.
+    /// </summary>
+    private void OnBottomAppBarSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (_appServices?.PositioningService.IsBottomAppBarPositioning() == true)
+            ScheduleBottomAppBarLayout();
     }
 
     /// <summary>
@@ -107,9 +121,8 @@ public partial class MainWindow
             return;
         }
 
-        // UI controls such as Dock vertical padding, icon size and the running
-        // indicator setting rebuild/resize the SizeToContent window. Wait for
-        // layout to settle, then perform at most one AppBar height update.
+        // Wait for Avalonia's SizeToContent layout to settle. Multiple changes in
+        // the same UI operation collapse to one UpdateHeight call.
         _bottomAppBarLayoutTimer.Stop();
         _bottomAppBarLayoutTimer.Start();
     }
@@ -160,8 +173,8 @@ public partial class MainWindow
         }
         else
         {
-            // No-op when height is unchanged. Settings open/close therefore do
-            // not touch the Shell even if a harmless Dock refresh occurs.
+            // No-op when height is unchanged. Settings open/close and horizontal
+            // alignment changes therefore do not touch Windows work-area height.
             if (!_appBarManager.UpdateHeight(height))
                 return;
         }

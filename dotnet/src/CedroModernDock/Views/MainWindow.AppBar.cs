@@ -4,253 +4,186 @@ using Avalonia.Platform;
 using Avalonia.Threading;
 using CedroModernDock.Core.Models;
 using CedroModernDock.Infrastructure.Windows.Native;
+using CedroModernDock.ViewModels;
 
 namespace CedroModernDock.Views;
 
 /// <summary>
-/// Optional Windows AppBar integration. Cedro reserves a full edge strip so
-/// ordinary maximized windows stop at the Dock's inner edge, while the actual
-/// Dock HWND remains compact and keeps its current along-edge alignment.
+/// Runtime for the dedicated BOTTOM_APPBAR positioning mode.
+///
+/// This intentionally has no periodic Shell polling and no ABN_POSCHANGED
+/// callback loop. The Shell is touched only when entering/leaving the mode or
+/// after a debounced Dock UI refresh changes the final native height.
 /// </summary>
 public partial class MainWindow
 {
-    private readonly DispatcherTimer _appBarPolicyTimer = new()
+    private readonly DispatcherTimer _bottomAppBarLayoutTimer = new()
     {
-        Interval = TimeSpan.FromMilliseconds(300)
+        Interval = TimeSpan.FromMilliseconds(180)
     };
 
     private AppBarReservationManager? _appBarManager;
     private IntPtr _appBarHwnd;
+    private bool _bottomAppBarHooksInstalled;
 
-    private void OnAppBarOpened(object? sender, EventArgs e)
+    private void OnBottomAppBarWindowOpened(object? sender, EventArgs e)
     {
+        if (_bottomAppBarHooksInstalled)
+            return;
+
         IPlatformHandle? handle = this.TryGetPlatformHandle();
         _appBarHwnd = handle?.Handle ?? IntPtr.Zero;
         if (_appBarHwnd == IntPtr.Zero)
             return;
 
+        _bottomAppBarHooksInstalled = true;
         _appBarManager = new AppBarReservationManager(_appBarHwnd);
-        _appBarManager.ShellPositionChanged += OnAppBarShellPositionChanged;
-        _appBarPolicyTimer.Tick += OnAppBarPolicyTick;
-        _appBarPolicyTimer.Start();
+        _bottomAppBarLayoutTimer.Tick += OnBottomAppBarLayoutTimerTick;
 
-        // Wait until Avalonia has completed the first SizeToContent pass and the
-        // existing Dock positioning code has applied its saved anchor.
-        Dispatcher.UIThread.Post(RefreshAppBarPolicy, DispatcherPriority.Loaded);
+        // MainWindow originally routes all UI refreshes through ApplyDockPosition.
+        // In Bottom AppBar mode that would read the already-reduced WorkingArea
+        // and move Cedro inward. Replace the route with a mode-aware wrapper.
+        if (DataContext is MainWindowViewModel vm)
+            vm.RepositionAction = RepositionForCurrentMode;
+
+        ScheduleBottomAppBarLayout();
     }
 
-    private void OnAppBarClosed(object? sender, EventArgs e)
+    private void OnBottomAppBarWindowClosed(object? sender, EventArgs e)
     {
-        _appBarPolicyTimer.Stop();
-        _appBarPolicyTimer.Tick -= OnAppBarPolicyTick;
+        _bottomAppBarLayoutTimer.Stop();
+        _bottomAppBarLayoutTimer.Tick -= OnBottomAppBarLayoutTimerTick;
 
-        if (_appBarManager != null)
+        _appBarManager?.Dispose();
+        _appBarManager = null;
+        _appBarHwnd = IntPtr.Zero;
+        _bottomAppBarHooksInstalled = false;
+    }
+
+    /// <summary>
+    /// Called by MainWindowViewModel after settings/UI changes. Non-AppBar modes
+    /// keep the original positioning path; Bottom AppBar never calls it while
+    /// its work-area reservation is active.
+    /// </summary>
+    private void RepositionForCurrentMode()
+    {
+        if (_appServices == null)
+            return;
+
+        if (_appServices.PositioningService.IsBottomAppBarPositioning())
         {
-            _appBarManager.ShellPositionChanged -= OnAppBarShellPositionChanged;
-            _appBarManager.Dispose();
-            _appBarManager = null;
+            ScheduleBottomAppBarLayout();
+            return;
         }
 
-        _appBarHwnd = IntPtr.Zero;
+        // Leaving Bottom AppBar must release the Windows work area BEFORE a
+        // static/dynamic position is resolved. This prevents the previous AppBar
+        // height from becoming an accidental extra bottom margin.
+        if (_appBarManager?.IsRegistered == true)
+        {
+            _bottomAppBarLayoutTimer.Stop();
+            _appBarManager.Remove();
+            Dispatcher.UIThread.Post(() => ApplyDockPosition(force: true), DispatcherPriority.Loaded);
+            return;
+        }
+
+        ApplyDockPosition();
     }
 
-    private void OnAppBarPolicyTick(object? sender, EventArgs e)
-        => RefreshAppBarPolicy();
-
-    private void OnAppBarShellPositionChanged()
+    private void ScheduleBottomAppBarLayout()
     {
-        // The Shell broadcasts ABN_POSCHANGED whenever an AppBar moves. Cedro
-        // deliberately does not force another ABM_SETPOS for an unchanged
-        // geometry: doing so could make our own SetPos generate another callback
-        // indefinitely. The normal Update comparison still re-queries whenever
-        // the taskbar/work area, monitor, edge or Dock thickness actually changes.
-        Dispatcher.UIThread.Post(RefreshAppBarPolicy);
+        if (!_bottomAppBarHooksInstalled || _appServices == null)
+            return;
+
+        if (!_appServices.PositioningService.IsBottomAppBarPositioning())
+        {
+            if (_appBarManager?.IsRegistered == true)
+                _appBarManager.Remove();
+            return;
+        }
+
+        // UI controls such as Dock vertical padding, icon size and the running
+        // indicator setting rebuild/resize the SizeToContent window. Wait for
+        // layout to settle, then perform at most one AppBar height update.
+        _bottomAppBarLayoutTimer.Stop();
+        _bottomAppBarLayoutTimer.Start();
     }
 
-    private void RefreshAppBarPolicy()
+    private void OnBottomAppBarLayoutTimerTick(object? sender, EventArgs e)
+    {
+        _bottomAppBarLayoutTimer.Stop();
+        ApplyBottomAppBarLayout();
+    }
+
+    private void ApplyBottomAppBarLayout()
     {
         if (_appServices == null || _appBarManager == null || _appBarHwnd == IntPtr.Zero)
             return;
 
-        if (!_appServices.AppearanceService.GetReserveDesktopSpace() ||
-            !TryResolveAppBarSide(out EdgeSide side))
+        if (!_appServices.PositioningService.IsBottomAppBarPositioning())
         {
-            ReleaseAppBarReservation();
+            _appBarManager.Remove();
             return;
         }
 
-        if (!MonitorWorkArea.TryGet(_appBarHwnd, out RECT monitor, out RECT safeWork) ||
-            !WindowEnvironment.TryGetWindowRect(_appBarHwnd, out RECT currentWindow))
+        // Bottom AppBar is horizontal by contract. This is also enforced in the
+        // Settings ViewModel, but keep a runtime guard for imported configs.
+        if (_appServices.AppearanceService.GetVerticalDock())
         {
-            ReleaseAppBarReservation();
+            _appServices.AppearanceService.SetVerticalDock(false);
+            if (DataContext is MainWindowViewModel vm)
+                vm.UpdateDockUI();
             return;
         }
 
-        int width = Math.Max(1, currentWindow.Right - currentWindow.Left);
-        int height = Math.Max(1, currentWindow.Bottom - currentWindow.Top);
+        if (!WindowEnvironment.TryGetWindowRect(_appBarHwnd, out RECT windowRect))
+            return;
 
-        // Auto-hide may currently have the HWND mostly outside the visible area.
-        // Always calculate reservation thickness from its expanded position.
-        RECT visibleWindow = currentWindow;
-        if (_edgeAutoHideActive && _edgeWindowWidth > 0 && _edgeWindowHeight > 0)
+        int width = Math.Max(1, windowRect.Right - windowRect.Left);
+        int height = Math.Max(1, windowRect.Bottom - windowRect.Top);
+
+        if (!_appBarManager.IsRegistered)
         {
-            width = _edgeWindowWidth;
-            height = _edgeWindowHeight;
-            visibleWindow = new RECT
-            {
-                Left = _edgeVisiblePosition.X,
-                Top = _edgeVisiblePosition.Y,
-                Right = _edgeVisiblePosition.X + width,
-                Bottom = _edgeVisiblePosition.Y + height
-            };
+            // Read taskbar-aware work geometry ONCE before Cedro registers.
+            // After ABM_NEW/SETPOS we deliberately never feed rcWork back into
+            // AppBar geometry, which is the core anti-nesting invariant.
+            if (!MonitorWorkArea.TryGet(_appBarHwnd, out RECT monitor, out RECT baselineWork))
+                return;
+
+            if (!_appBarManager.RegisterBottom(monitor, baselineWork, height))
+                return;
+        }
+        else
+        {
+            // No-op when height is unchanged. Settings open/close therefore do
+            // not touch the Shell even if a harmless Dock refresh occurs.
+            if (!_appBarManager.UpdateHeight(height))
+                return;
         }
 
-        int edgeGap = side switch
+        PositionBottomAppBarDock(width, height);
+    }
+
+    private void PositionBottomAppBarDock(int width, int height)
+    {
+        if (_appServices == null || _appBarManager?.IsRegistered != true)
+            return;
+
+        RECT reservation = _appBarManager.ReservationRect;
+        int availableWidth = Math.Max(1, reservation.Right - reservation.Left);
+        width = Math.Min(width, availableWidth);
+
+        int x = _appServices.PositioningService.GetHorizontalAnchor() switch
         {
-            EdgeSide.Top => Math.Max(0, visibleWindow.Top - safeWork.Top),
-            EdgeSide.Bottom => Math.Max(0, safeWork.Bottom - visibleWindow.Bottom),
-            EdgeSide.Left => Math.Max(0, visibleWindow.Left - safeWork.Left),
-            EdgeSide.Right => Math.Max(0, safeWork.Right - visibleWindow.Right),
-            _ => 0
+            DockHorizontalAnchor.LEFT => reservation.Left,
+            DockHorizontalAnchor.MIDDLE => reservation.Left + ((availableWidth - width) / 2),
+            DockHorizontalAnchor.RIGHT => reservation.Right - width,
+            _ => reservation.Left
         };
-
-        int thickness = side is EdgeSide.Top or EdgeSide.Bottom
-            ? height + edgeGap
-            : width + edgeGap;
-
-        AppBarEdge appBarEdge = ToAppBarEdge(side);
-        bool updated = _appBarManager.Update(
-            appBarEdge,
-            monitor,
-            safeWork,
-            thickness,
-            force: false);
-
-        if (!updated)
-        {
-            ReleaseAppBarReservation();
-            return;
-        }
-
-        // Edge-auto-hide has its own 40 ms geometry engine. MonitorWorkArea now
-        // removes Cedro's own reservation from rcWork, so that engine naturally
-        // continues using the taskbar boundary without recursive inward drift.
-        if (_edgeAutoHideActive)
-            return;
-
-        PositionDockInsideReservation(
-            side, _appBarManager.ReservationRect, monitor, width, height, currentWindow);
-    }
-
-    private bool TryResolveAppBarSide(out EdgeSide side)
-    {
-        side = EdgeSide.Bottom;
-        if (_appServices == null)
-            return false;
-
-        if (_edgeAutoHideActive)
-        {
-            side = _edgeSide;
-            return true;
-        }
-
-        if (_appServices.PositioningService.IsDynamicPositioning())
-        {
-            // A free-floating Dynamic Dock must never leave a phantom work-area
-            // strip behind. Only a deliberately edge-snapped Dynamic Dock gets
-            // an AppBar reservation.
-            if (!_appServices.AppearanceService.GetDynamicEdgeDocked())
-                return false;
-            return TryDecodeEdgeSide(
-                _appServices.AppearanceService.GetDynamicEdgeSide(), out side);
-        }
-
-        bool verticalDock = _appServices.AppearanceService.GetVerticalDock();
-        if (verticalDock)
-        {
-            DockHorizontalAnchor anchor = _appServices.PositioningService.GetHorizontalAnchor();
-            if (anchor == DockHorizontalAnchor.LEFT)
-            {
-                side = EdgeSide.Left;
-                return true;
-            }
-            if (anchor == DockHorizontalAnchor.RIGHT)
-            {
-                side = EdgeSide.Right;
-                return true;
-            }
-            return false;
-        }
-
-        DockVerticalAnchor verticalAnchor = _appServices.PositioningService.GetVerticalAnchor();
-        if (verticalAnchor == DockVerticalAnchor.TOP)
-        {
-            side = EdgeSide.Top;
-            return true;
-        }
-        if (verticalAnchor == DockVerticalAnchor.DOWN)
-        {
-            side = EdgeSide.Bottom;
-            return true;
-        }
-        return false;
-    }
-
-    private void PositionDockInsideReservation(
-        EdgeSide side,
-        RECT reservation,
-        RECT monitor,
-        int width,
-        int height,
-        RECT currentWindow)
-    {
-        int x = currentWindow.Left;
-        int y = currentWindow.Top;
-
-        switch (side)
-        {
-            case EdgeSide.Top:
-                x = Math.Clamp(x, monitor.Left, Math.Max(monitor.Left, monitor.Right - width));
-                y = reservation.Bottom - height;
-                break;
-            case EdgeSide.Bottom:
-                x = Math.Clamp(x, monitor.Left, Math.Max(monitor.Left, monitor.Right - width));
-                y = reservation.Top;
-                break;
-            case EdgeSide.Left:
-                x = reservation.Right - width;
-                y = Math.Clamp(y, monitor.Top, Math.Max(monitor.Top, monitor.Bottom - height));
-                break;
-            case EdgeSide.Right:
-                x = reservation.Left;
-                y = Math.Clamp(y, monitor.Top, Math.Max(monitor.Top, monitor.Bottom - height));
-                break;
-        }
+        int y = reservation.Top;
 
         var target = new PixelPoint(x, y);
-        if (!IsNear(Position, target))
+        if (Position != target)
             Position = target;
     }
-
-    private void ReleaseAppBarReservation()
-    {
-        if (_appBarManager?.IsRegistered != true)
-            return;
-
-        _appBarManager.Remove();
-
-        // Static positioning may have been adjusted by the AppBar boundary.
-        // Re-resolve once after the Shell restores the normal work area.
-        if (_appServices?.PositioningService.IsDynamicPositioning() == false)
-            Dispatcher.UIThread.Post(() => ApplyDockPosition(force: true));
-    }
-
-    private static AppBarEdge ToAppBarEdge(EdgeSide side) => side switch
-    {
-        EdgeSide.Top => AppBarEdge.Top,
-        EdgeSide.Bottom => AppBarEdge.Bottom,
-        EdgeSide.Left => AppBarEdge.Left,
-        EdgeSide.Right => AppBarEdge.Right,
-        _ => AppBarEdge.Bottom
-    };
 }

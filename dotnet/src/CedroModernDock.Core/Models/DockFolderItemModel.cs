@@ -14,6 +14,12 @@ public class DockFolderItemModel : DockItem
     [JsonPropertyName("customIconPngBase64")]
     public string? CustomIconPngBase64 { get; set; }
 
+    [JsonPropertyName("customSystemIconSource")]
+    public string? CustomSystemIconSource { get; set; }
+
+    [JsonPropertyName("customSystemIconIndex")]
+    public int? CustomSystemIconIndex { get; set; }
+
     [JsonIgnore]
     public string FolderPath => Path;
 

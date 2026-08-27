@@ -96,17 +96,22 @@ public partial class MainWindow : Window
         if (DataContext is MainWindowViewModel vm)
         {
             vm.OpenSettingsAction = () => OpenSettings(vm);
-            vm.RepositionAction = () => ApplyDockPosition();
+            // Every UI refresh goes through one mode-aware path. STATIC keeps its
+            // old positioning behavior; DYNAMIC keeps the saved free position;
+            // BOTTOM_APPBAR never re-enters the legacy work-area calculation.
+            vm.RepositionAction = RepositionForCurrentMode;
             vm.PreviewDismissAction = HidePreview;
             vm.Initialize();
         }
 
+        // This is a safe startup placement before Bottom AppBar registration.
+        // Once the AppBar is registered, only MainWindow.AppBar owns its Y value.
         ApplyDockPosition(force: true);
 
-        // Static anchors must use the finalized window size, which SizeToContent
-        // only produces after the first layout pass. Re-apply once layout settles
-        // and whenever the dock content resizes the window.
-        if (_appServices?.PositioningService.IsDynamicPositioning() == false)
+        // Only genuine STATIC positioning participates in the legacy
+        // SizeToContent -> re-anchor path. Treating BOTTOM_APPBAR as merely
+        // "not dynamic" was one of the feedback loops in the first experiment.
+        if (_appServices?.PositioningService.IsStaticPositioning() == true)
         {
             SizeChanged += OnDockSizeChanged;
             Dispatcher.UIThread.Post(() => ApplyDockPosition(), DispatcherPriority.Loaded);
@@ -117,7 +122,8 @@ public partial class MainWindow : Window
     /// Applies the dock position from the positioning service. In STATIC mode
     /// this re-anchors the dock to the current screen edge; in DYNAMIC mode the
     /// saved position is only applied once at startup (force) so the user's
-    /// drags are never overridden by subsequent refreshes.
+    /// drags are never overridden by subsequent refreshes. Bottom AppBar calls
+    /// this only before registration or after ABM_REMOVE.
     /// </summary>
     private void ApplyDockPosition(bool force = false)
     {
@@ -129,7 +135,7 @@ public partial class MainWindow : Window
 
     private void OnDockSizeChanged(object? sender, SizeChangedEventArgs e)
     {
-        if (_appServices?.PositioningService.IsDynamicPositioning() == false)
+        if (_appServices?.PositioningService.IsStaticPositioning() == true)
             ApplyDockPosition();
     }
 
@@ -448,7 +454,14 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        // Return the Windows work area while the HWND is unquestionably still
+        // alive. The XAML Closed handler disposes the manager again later, but
+        // Remove() is idempotent and therefore becomes a no-op on the second call.
+        _bottomAppBarLayoutTimer.Stop();
+        _appBarManager?.Remove();
+
         PositionChanged -= OnDockPositionChanged;
+        SizeChanged -= OnDockSizeChanged;
         _positionPersistTimer.Stop();
         HidePreview();
         if (DataContext is MainWindowViewModel vm)

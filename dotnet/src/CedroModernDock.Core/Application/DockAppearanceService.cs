@@ -78,6 +78,12 @@ public class DockAppearanceService
         _dockService.SaveChanges();
     }
 
+    /// <summary>
+    /// Legacy Rev v1.2 AppBar experiment flag. It is deliberately no longer
+    /// consumed by runtime positioning; AppBar ownership now exists only as the
+    /// dedicated BOTTOM_APPBAR positioning mode. Keep the field/getter/setter so
+    /// old config files continue to deserialize and round-trip safely.
+    /// </summary>
     public bool GetReserveDesktopSpace() => GetDock().ReserveDesktopSpace;
 
     public void SetReserveDesktopSpace(bool value)
@@ -87,11 +93,16 @@ public class DockAppearanceService
     }
 
     /// <summary>
-    /// Legacy aggregate getter kept for runtime callers: true when either
-    /// top/bottom or left/right edge auto-hide is enabled.
+    /// Legacy aggregate getter kept for runtime callers. Bottom AppBar owns the
+    /// Shell work-area contract exclusively, so the independent edge-auto-hide
+    /// state machine is forcibly disabled in that mode even for imported configs.
     /// </summary>
     public bool GetAutoHideAtScreenEdge()
-        => GetAutoHideAtHorizontalEdges() || GetAutoHideAtVerticalEdges();
+    {
+        if (GetDock().PositioningMode == DockPositioningMode.BOTTOM_APPBAR)
+            return false;
+        return GetAutoHideAtHorizontalEdges() || GetAutoHideAtVerticalEdges();
+    }
 
     /// <summary>
     /// Legacy aggregate setter. Used only for backward compatibility and sets
@@ -106,10 +117,12 @@ public class DockAppearanceService
         _dockService.SaveChanges();
     }
 
-    /// <summary>Top/bottom screen edges.</summary>
+    /// <summary>Top/bottom screen edges. Always disabled in Bottom AppBar mode.</summary>
     public bool GetAutoHideAtHorizontalEdges()
     {
         DockModel dock = GetDock();
+        if (dock.PositioningMode == DockPositioningMode.BOTTOM_APPBAR)
+            return false;
         return dock.AutoHideAtHorizontalEdges ?? dock.AutoHideAtScreenEdge;
     }
 
@@ -121,10 +134,12 @@ public class DockAppearanceService
         _dockService.SaveChanges();
     }
 
-    /// <summary>Left/right screen edges.</summary>
+    /// <summary>Left/right screen edges. Always disabled in Bottom AppBar mode.</summary>
     public bool GetAutoHideAtVerticalEdges()
     {
         DockModel dock = GetDock();
+        if (dock.PositioningMode == DockPositioningMode.BOTTOM_APPBAR)
+            return false;
         return dock.AutoHideAtVerticalEdges ?? dock.AutoHideAtScreenEdge;
     }
 

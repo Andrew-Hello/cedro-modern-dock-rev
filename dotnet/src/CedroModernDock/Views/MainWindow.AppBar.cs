@@ -40,13 +40,18 @@ public partial class MainWindow
         _appBarManager = new AppBarReservationManager(_appBarHwnd);
         _bottomAppBarLayoutTimer.Tick += OnBottomAppBarLayoutTimerTick;
 
-        // MainWindow originally routes all UI refreshes through ApplyDockPosition.
-        // In Bottom AppBar mode that would read the already-reduced WorkingArea
-        // and move Cedro inward. Replace the route with a mode-aware wrapper.
-        if (DataContext is MainWindowViewModel vm)
-            vm.RepositionAction = RepositionForCurrentMode;
-
-        ScheduleBottomAppBarLayout();
+        // Avalonia raises the XAML Opened event from base.OnOpened(). The main
+        // window override continues afterwards and temporarily installs the
+        // legacy ApplyDockPosition callback. Post this work to Loaded priority so
+        // our mode-aware routing wins only after that initialization is complete.
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!_bottomAppBarHooksInstalled)
+                return;
+            if (DataContext is MainWindowViewModel vm)
+                vm.RepositionAction = RepositionForCurrentMode;
+            ScheduleBottomAppBarLayout();
+        }, DispatcherPriority.Loaded);
     }
 
     private void OnBottomAppBarWindowClosed(object? sender, EventArgs e)

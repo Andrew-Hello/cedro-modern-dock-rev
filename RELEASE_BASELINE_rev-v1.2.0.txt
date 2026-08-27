@@ -1,0 +1,10 @@
+Cedro Modern Dock Rev v1.2.0 stable baseline
+
+This branch freezes the user-validated Rev v1.2.0 feature set for the official Windows x64 release.
+
+Release highlights:
+- BAT/CMD/VBS script launchers
+- Multi-library Windows system icon center
+- Dynamic Windows system icon extraction
+- Lightweight %SystemRoot% resource source + icon index persistence
+- Backward compatibility with Rev v1.1.0 Base64 custom icon overrides

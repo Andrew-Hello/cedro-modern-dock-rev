@@ -7,9 +7,10 @@ using CedroModernDock.Infrastructure.Windows.Native;
 namespace CedroModernDock.ViewModels;
 
 /// <summary>
-/// Per-item custom icon override management. The selected image is normalized
-/// to PNG, persisted inside config.json as Base64, and cached under AppData for
-/// fast loading. This keeps the existing JSON export/import workflow portable.
+/// Per-item custom icon override management. The selected image or Windows
+/// system-library icon is normalized to PNG, persisted inside config.json as
+/// Base64, and cached under AppData for fast loading. This keeps the existing
+/// JSON export/import workflow portable.
 /// </summary>
 public partial class SettingsViewModel
 {
@@ -29,10 +30,17 @@ public partial class SettingsViewModel
     public string CustomIconTitle => T("settings.icons.customIcon.title");
     public string CustomIconHelper => T("settings.icons.customIcon.helper");
     public string ChooseCustomIconText => T("settings.icons.customIcon.choose");
+    public string ChooseSystemIconText => T("settings.icons.customIcon.chooseSystem");
     public string ResetCustomIconText => T("settings.icons.customIcon.reset");
     public string CustomIconDialogTitle => T("settings.icons.customIcon.dialogTitle");
     public string CustomIconFileTypeText => T("settings.icons.customIcon.fileType");
     public string CustomIconFailedText => T("settings.icons.customIcon.failed");
+    public string SystemIconPickerTitle => T("settings.icons.customIcon.systemPicker.title");
+    public string SystemIconPickerSubtitle => T("settings.icons.customIcon.systemPicker.subtitle");
+    public string SystemIconPickerLoading => T("settings.icons.customIcon.systemPicker.loading");
+    public string SystemIconPickerLoaded => T("settings.icons.customIcon.systemPicker.loaded");
+    public string SystemIconPickerFailed => T("settings.icons.customIcon.systemPicker.failed");
+    public string SystemIconPickerCancel => T("settings.icons.customIcon.systemPicker.cancel");
 
     /// <summary>Called when the dock item selection changes.</summary>
     public void NotifyCustomIconSelectionChanged()
@@ -89,7 +97,26 @@ public partial class SettingsViewModel
 
             string source = files[0].Path.LocalPath;
             string newData = CustomIconStore.ImportAsPngBase64(source);
+            ApplyCustomIconOverride(newData);
+        }
+        catch (Exception ex)
+        {
+            ShowCustomIconError(ex.Message);
+        }
+    }
 
+    /// <summary>
+    /// Applies already-normalized PNG Base64 data from any icon source. The
+    /// SHELL32 picker uses this same path as normal image imports, so system
+    /// icons inherit portability, caching and reset semantics automatically.
+    /// </summary>
+    public void ApplyCustomIconOverride(string newData)
+    {
+        if (!CanCustomizeIcon || string.IsNullOrWhiteSpace(newData))
+            return;
+
+        try
+        {
             DockItem item = _appServices.DockService.GetItems()[SelectedItemIndex];
             string? oldData = item.CustomIconPngBase64;
             item.CustomIconPngBase64 = newData;
@@ -109,11 +136,7 @@ public partial class SettingsViewModel
         }
         catch (Exception ex)
         {
-            System.Windows.Forms.MessageBox.Show(
-                string.Format(CustomIconFailedText, ex.Message),
-                "Cedro Modern Dock",
-                System.Windows.Forms.MessageBoxButtons.OK,
-                System.Windows.Forms.MessageBoxIcon.Error);
+            ShowCustomIconError(ex.Message);
         }
     }
 
@@ -134,5 +157,14 @@ public partial class SettingsViewModel
             SelectedItemIndex = selectedIndex;
         ApplyCustomIconPreviews();
         _dockRefreshAction();
+    }
+
+    private void ShowCustomIconError(string details)
+    {
+        System.Windows.Forms.MessageBox.Show(
+            string.Format(CustomIconFailedText, details),
+            "Cedro Modern Dock",
+            System.Windows.Forms.MessageBoxButtons.OK,
+            System.Windows.Forms.MessageBoxIcon.Error);
     }
 }

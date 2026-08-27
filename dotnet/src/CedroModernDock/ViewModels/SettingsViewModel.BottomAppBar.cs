@@ -41,13 +41,21 @@ public partial class SettingsViewModel
         if (current == mode)
             return;
 
-        // Bottom AppBar is always a horizontal strip directly above the taskbar.
-        // Persisting a horizontal layout avoids a contradictory General setting.
-        if (mode == DockPositioningMode.BOTTOM_APPBAR && _appServices.AppearanceService.GetVerticalDock())
+        if (mode == DockPositioningMode.BOTTOM_APPBAR)
         {
-            _appServices.AppearanceService.SetVerticalDock(false);
-            _isVerticalDock = false;
-            base.OnPropertyChanged(new PropertyChangedEventArgs(nameof(IsVerticalDock)));
+            // Bottom AppBar is always a horizontal strip directly above the
+            // taskbar. It must not share ownership with the four-edge auto-hide
+            // state machine or an old Dynamic magnetic-edge state.
+            if (_appServices.AppearanceService.GetVerticalDock())
+            {
+                _appServices.AppearanceService.SetVerticalDock(false);
+                _isVerticalDock = false;
+                base.OnPropertyChanged(new PropertyChangedEventArgs(nameof(IsVerticalDock)));
+            }
+
+            _appServices.AppearanceService.SetAutoHideAtHorizontalEdges(false);
+            _appServices.AppearanceService.SetAutoHideAtVerticalEdges(false);
+            _appServices.AppearanceService.SetDynamicEdgeDockState(false, 0, 0);
         }
 
         // Keep the legacy bool field coherent for any old code paths without
@@ -60,6 +68,8 @@ public partial class SettingsViewModel
         OnPropertyChanged(nameof(IsDynamicPositioningSelected));
         OnPropertyChanged(nameof(IsBottomAppBarMode));
         OnPropertyChanged(nameof(CanArrangeVertical));
+        OnPropertyChanged(nameof(AutoHideAtHorizontalEdges));
+        OnPropertyChanged(nameof(AutoHideAtVerticalEdges));
         _dockRefreshAction();
     }
 }

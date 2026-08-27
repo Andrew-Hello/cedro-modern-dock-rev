@@ -4,33 +4,88 @@ using System.Runtime.InteropServices;
 
 namespace CedroModernDock.Infrastructure.Windows.Native;
 
+/// <summary>One known Windows icon-bearing resource library.</summary>
+public sealed record SystemIconLibraryDescriptor(
+    string Category,
+    string FileName,
+    string SourceExpression)
+{
+    public string ResolvedPath => SystemIconLibrary.ResolveSourcePath(SourceExpression);
+    public bool IsAvailable => File.Exists(ResolvedPath);
+}
+
+/// <summary>Persistable system-icon selection: resource source + zero-based icon ordinal.</summary>
+public sealed record SystemIconSelection(string SourceExpression, int IconIndex);
+
 /// <summary>
-/// Reads icon resources from Windows icon libraries. The default source is
-/// %SystemRoot%\System32\SHELL32.dll, which contains the familiar built-in
-/// Explorer/system icons. Preview icons can be extracted cheaply at a smaller
-/// size while the selected icon is re-extracted at high resolution and stored
-/// as portable PNG data in the normal custom-icon configuration field.
+/// Reads icon resources from a curated set of Windows DLL/EXE icon libraries.
+/// Unlike imported PNG/ICO overrides, a system icon is persisted as
+/// SourceExpression + IconIndex and extracted dynamically at runtime. This keeps
+/// config.json compact and does not copy Microsoft system icon bytes into it.
 /// </summary>
 public static class SystemIconLibrary
 {
-    public static string DefaultShell32Path
-    {
-        get
+    /// <summary>
+    /// Curated catalog grouped by the use cases exposed in the picker. Some
+    /// resource files are not shipped by every Windows edition/version; the UI
+    /// automatically skips unavailable entries while keeping the catalog stable.
+    /// </summary>
+    public static IReadOnlyList<SystemIconLibraryDescriptor> Libraries { get; } =
+        new[]
         {
-            string systemDirectory = Environment.GetFolderPath(Environment.SpecialFolder.System);
-            if (string.IsNullOrWhiteSpace(systemDirectory))
-            {
-                string root = Environment.GetEnvironmentVariable("SystemRoot") ?? @"C:\Windows";
-                systemDirectory = Path.Combine(root, "System32");
-            }
-            return Path.Combine(systemDirectory, "SHELL32.dll");
-        }
+            // Common
+            new SystemIconLibraryDescriptor("common", "SHELL32.dll", @"%SystemRoot%\System32\SHELL32.dll"),
+            new SystemIconLibraryDescriptor("common", "imageres.dll", @"%SystemRoot%\System32\imageres.dll"),
+
+            // Devices
+            new SystemIconLibraryDescriptor("devices", "DDORes.dll", @"%SystemRoot%\System32\DDORes.dll"),
+            new SystemIconLibraryDescriptor("devices", "setupapi.dll", @"%SystemRoot%\System32\setupapi.dll"),
+            new SystemIconLibraryDescriptor("devices", "compstui.dll", @"%SystemRoot%\System32\compstui.dll"),
+
+            // Network
+            new SystemIconLibraryDescriptor("network", "netshell.dll", @"%SystemRoot%\System32\netshell.dll"),
+            new SystemIconLibraryDescriptor("network", "netcenter.dll", @"%SystemRoot%\System32\netcenter.dll"),
+            new SystemIconLibraryDescriptor("network", "networkexplorer.dll", @"%SystemRoot%\System32\networkexplorer.dll"),
+
+            // Classic
+            new SystemIconLibraryDescriptor("classic", "moricons.dll", @"%SystemRoot%\System32\moricons.dll"),
+            new SystemIconLibraryDescriptor("classic", "pifmgr.dll", @"%SystemRoot%\System32\pifmgr.dll"),
+
+            // Other useful Windows resources
+            new SystemIconLibraryDescriptor("other", "explorer.exe", @"%SystemRoot%\explorer.exe"),
+            new SystemIconLibraryDescriptor("other", "mmres.dll", @"%SystemRoot%\System32\mmres.dll"),
+            new SystemIconLibraryDescriptor("other", "wmploc.dll", @"%SystemRoot%\System32\wmploc.dll")
+        };
+
+    public static IReadOnlyList<SystemIconLibraryDescriptor> AvailableLibraries
+        => Libraries.Where(library => library.IsAvailable).ToArray();
+
+    public static string DefaultShell32Path
+        => ResolveSourcePath(@"%SystemRoot%\System32\SHELL32.dll");
+
+    /// <summary>
+    /// Expands environment variables at runtime. Persisted config intentionally
+    /// keeps expressions such as %SystemRoot% so it remains portable across
+    /// Windows installations that use a different system drive/root directory.
+    /// </summary>
+    public static string ResolveSourcePath(string sourceExpression)
+    {
+        if (string.IsNullOrWhiteSpace(sourceExpression))
+            return string.Empty;
+
+        string root = Environment.GetEnvironmentVariable("SystemRoot") ?? @"C:\Windows";
+        string source = sourceExpression.Replace(
+            "%SystemRoot%", root, StringComparison.OrdinalIgnoreCase);
+        source = Environment.ExpandEnvironmentVariables(source);
+
+        try { return Path.GetFullPath(source); }
+        catch { return source; }
     }
 
     /// <summary>Returns the number of icon groups in the supplied library.</summary>
-    public static int GetIconCount(string? libraryPath = null)
+    public static int GetIconCount(string sourceExpression)
     {
-        string path = libraryPath ?? DefaultShell32Path;
+        string path = ResolveSourcePath(sourceExpression);
         if (!File.Exists(path))
             return 0;
 
@@ -43,11 +98,11 @@ public static class SystemIconLibrary
 
     /// <summary>
     /// Extracts one icon resource by zero-based ordinal and returns normalized
-    /// PNG bytes. Callers own the returned managed bytes only; HICON ownership
-    /// is fully released inside this method.
+    /// PNG bytes. HICON ownership is fully released inside this method.
     /// </summary>
-    public static byte[]? ExtractPngBytes(string libraryPath, int iconIndex, int size)
+    public static byte[]? ExtractPngBytes(string sourceExpression, int iconIndex, int size)
     {
+        string libraryPath = ResolveSourcePath(sourceExpression);
         if (string.IsNullOrWhiteSpace(libraryPath) || !File.Exists(libraryPath) || iconIndex < 0)
             return null;
 
@@ -76,12 +131,6 @@ public static class SystemIconLibrary
         {
             User32Icon.DestroyIcon(icons[0]);
         }
-    }
-
-    public static string? ExtractPngBase64(string libraryPath, int iconIndex, int size = 256)
-    {
-        byte[]? bytes = ExtractPngBytes(libraryPath, iconIndex, size);
-        return bytes is { Length: > 0 } ? Convert.ToBase64String(bytes) : null;
     }
 }
 

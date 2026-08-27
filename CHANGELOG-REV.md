@@ -1,5 +1,59 @@
 # Cedro Modern Dock Rev — Changelog
 
+## Rev v1.2.0 — 2026-08-27
+
+Third stable Rev release, focused on script launchers and a full Windows system-icon resource browser.
+
+### Windows script launchers
+
+- Added **Add Script (.bat/.cmd/.vbs)** to **Settings → Icons**.
+- Added direct support for `.bat`, `.cmd` and `.vbs` launch targets while keeping them as normal program items for ordering, removal, icon customization and config export/import.
+- Script launchers use normal Windows Shell association semantics, matching Explorer double-click behavior.
+- The script's containing directory is explicitly used as the working directory so BAT/VBS wrappers can reliably call sibling `.ps1` files and other relative resources.
+- Added Shell-associated default icon extraction for scripts so newly pinned launchers do not appear blank.
+- Added English and Simplified Chinese strings for script selection and settings controls.
+
+### Multi-library Windows system icon center
+
+- Replaced the single-library `SHELL32.dll` browser with a categorized multi-library icon picker.
+- Added the following curated Windows resource catalog:
+  - Common: `SHELL32.dll`, `imageres.dll`
+  - Devices: `DDORes.dll`, `setupapi.dll`, `compstui.dll`
+  - Network: `netshell.dll`, `netcenter.dll`, `networkexplorer.dll`
+  - Classic: `moricons.dll`, `pifmgr.dll`
+  - Other: `explorer.exe`, `mmres.dll`, `wmploc.dll`
+- Resource files missing from the current Windows edition/build are skipped automatically.
+- Added a top-level library selector with category labels and resolved-path display.
+- Each selected DLL/EXE is scanned asynchronously and shown as a clickable icon thumbnail grid with resource indexes.
+- Switching libraries cancels the old scan before starting the new one.
+
+### Lightweight system-icon persistence
+
+- System-library icons are no longer copied into `config.json` as Base64 PNG data.
+- Added per-item `customSystemIconSource` and `customSystemIconIndex` properties.
+- System icon selections are persisted as `%SystemRoot%`-based source expressions plus a zero-based resource index, for example `%SystemRoot%\System32\imageres.dll` + `15`.
+- `%SystemRoot%` is expanded only at runtime, avoiding hard-coded `C:\Windows` paths.
+- System icons are dynamically extracted when the Dock/settings list resolves the item's icon.
+- Imported PNG/ICO/JPG/BMP/GIF/TIFF overrides continue to use the portable Base64 PNG representation introduced in Rev v1.1.0.
+- Selecting a system icon clears an imported-image override and vice versa, preventing conflicting override sources.
+- **Restore default icon** clears both override modes.
+- Existing Rev v1.1.0 Base64 icon configurations remain compatible.
+- Documented the Windows-version caveat: resource indexes can theoretically change across Windows releases, so imported PNG/ICO overrides remain preferable when exact cross-PC visual identity is required.
+
+### UI and refresh behavior
+
+- Settings-list icon previews now resolve both imported image overrides and dynamic system-library overrides.
+- Custom icon state is refreshed immediately after applying, resetting, moving or reordering Dock items.
+- Added complete English and Simplified Chinese localization for system-icon categories, library selection, loading/error states and helper text.
+
+### Build and compatibility
+
+- Verified the complete Rev v1.2.0 development baseline with the Windows GitHub Actions Release build.
+- Existing Rev v1.0.0 and v1.1.0 configurations remain loadable because all new system-icon fields are optional.
+- Rev v1.1.0 and Rev v1.0.0 remain frozen as previous known-good rollback points.
+
+---
+
 ## Rev v1.1.0 — 2026-08-27
 
 Second stable Rev release, focused on portable per-item icon customization and a cleaner development/release workflow.

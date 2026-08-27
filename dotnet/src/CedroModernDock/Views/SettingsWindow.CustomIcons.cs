@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.VisualTree;
+using CedroModernDock.Infrastructure.Windows.Native;
 using CedroModernDock.ViewModels;
 
 namespace CedroModernDock.Views;
@@ -99,14 +100,18 @@ public partial class SettingsWindow
             var picker = new SystemIconPickerWindow(
                 vm.SystemIconPickerTitle,
                 vm.SystemIconPickerSubtitle,
+                vm.SystemIconPickerLibraryLabel,
                 vm.SystemIconPickerLoading,
                 vm.SystemIconPickerLoaded,
                 vm.SystemIconPickerFailed,
-                vm.SystemIconPickerCancel);
+                vm.SystemIconPickerNoLibraries,
+                vm.SystemIconPickerCancel,
+                vm.SystemIconCategoryName);
 
-            string? selectedData = await picker.ShowDialog<string?>(this);
-            if (!string.IsNullOrWhiteSpace(selectedData))
-                vm.ApplyCustomIconOverride(selectedData);
+            SystemIconSelection? selection =
+                await picker.ShowDialog<SystemIconSelection?>(this);
+            if (selection != null)
+                vm.ApplySystemIconOverride(selection);
 
             RefreshCustomIconButtonStates();
         };

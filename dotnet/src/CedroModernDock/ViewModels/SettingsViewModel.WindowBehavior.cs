@@ -15,6 +15,19 @@ public partial class SettingsViewModel
         }
     }
 
+    public bool ReserveDesktopSpace
+    {
+        get => _appServices.AppearanceService.GetReserveDesktopSpace();
+        set
+        {
+            if (_appServices.AppearanceService.GetReserveDesktopSpace() == value)
+                return;
+            _appServices.AppearanceService.SetReserveDesktopSpace(value);
+            OnPropertyChanged(nameof(ReserveDesktopSpace));
+            _dockRefreshAction();
+        }
+    }
+
     /// <summary>Top/bottom edge docking and auto-hide.</summary>
     public bool AutoHideAtHorizontalEdges
     {
@@ -46,6 +59,8 @@ public partial class SettingsViewModel
     public string WindowBehaviorTitle => T("settings.general.windowBehavior.title");
     public string AlwaysOnTopTitle => T("settings.general.alwaysOnTop.title");
     public string AlwaysOnTopHelper => T("settings.general.alwaysOnTop.helper");
+    public string ReserveDesktopSpaceTitle => T("settings.general.reserveDesktopSpace.title");
+    public string ReserveDesktopSpaceHelper => T("settings.general.reserveDesktopSpace.helper");
     public string HorizontalEdgeAutoHideTitle => T("settings.general.edgeAutoHide.horizontal.title");
     public string HorizontalEdgeAutoHideHelper => T("settings.general.edgeAutoHide.horizontal.helper");
     public string VerticalEdgeAutoHideTitle => T("settings.general.edgeAutoHide.vertical.title");

@@ -20,6 +20,12 @@ public class DockProgramItemModel : DockItem
     [JsonPropertyName("customIconPngBase64")]
     public string? CustomIconPngBase64 { get; set; }
 
+    [JsonPropertyName("customSystemIconSource")]
+    public string? CustomSystemIconSource { get; set; }
+
+    [JsonPropertyName("customSystemIconIndex")]
+    public int? CustomSystemIconIndex { get; set; }
+
     /// <summary>
     /// Optional shell namespace target, typically
     /// shell:AppsFolder\\&lt;AppUserModelID&gt;. When present it is preferred for

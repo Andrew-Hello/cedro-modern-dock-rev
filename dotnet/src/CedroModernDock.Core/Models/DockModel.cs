@@ -60,6 +60,15 @@ public class DockModel
     public bool AlwaysOnTop { get; set; } = true;
 
     /// <summary>
+    /// When enabled, Cedro registers its current edge with the Windows Shell as
+    /// an AppBar reservation. Maximized normal windows then use the Dock's inner
+    /// edge as their work-area boundary instead of extending underneath it.
+    /// Disabled by default because this intentionally changes desktop work area.
+    /// </summary>
+    [JsonPropertyName("reserveDesktopSpace")]
+    public bool ReserveDesktopSpace { get; set; }
+
+    /// <summary>
     /// Legacy single edge-auto-hide switch. Kept for backward-compatible JSON
     /// loading; new builds expose independent horizontal (top/bottom) and
     /// vertical (left/right) switches below.

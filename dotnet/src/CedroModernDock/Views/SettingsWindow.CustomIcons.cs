@@ -11,6 +11,7 @@ public partial class SettingsWindow
 {
     private bool _customIconPanelInstalled;
     private Button? _chooseCustomIconButton;
+    private Button? _chooseSystemIconButton;
     private Button? _resetCustomIconButton;
 
     private void InstallCustomIconControls()
@@ -80,6 +81,36 @@ public partial class SettingsWindow
             RefreshCustomIconButtonStates();
         };
 
+        _chooseSystemIconButton = new Button
+        {
+            Content = vm.ChooseSystemIconText,
+            Background = new SolidColorBrush(Color.Parse("#444444")),
+            Foreground = Brushes.White,
+            BorderBrush = Brushes.Transparent,
+            Padding = new Thickness(12, 6),
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left,
+            Margin = new Thickness(0, 2, 0, 0)
+        };
+        _chooseSystemIconButton.Click += async (_, _) =>
+        {
+            if (!vm.CanCustomizeIcon)
+                return;
+
+            var picker = new SystemIconPickerWindow(
+                vm.SystemIconPickerTitle,
+                vm.SystemIconPickerSubtitle,
+                vm.SystemIconPickerLoading,
+                vm.SystemIconPickerLoaded,
+                vm.SystemIconPickerFailed,
+                vm.SystemIconPickerCancel);
+
+            string? selectedData = await picker.ShowDialog<string?>(this);
+            if (!string.IsNullOrWhiteSpace(selectedData))
+                vm.ApplyCustomIconOverride(selectedData);
+
+            RefreshCustomIconButtonStates();
+        };
+
         _resetCustomIconButton = new Button
         {
             Content = vm.ResetCustomIconText,
@@ -87,7 +118,8 @@ public partial class SettingsWindow
             Foreground = Brushes.White,
             BorderBrush = Brushes.Transparent,
             Padding = new Thickness(12, 6),
-            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left,
+            Margin = new Thickness(0, 2, 0, 0)
         };
         _resetCustomIconButton.Click += (_, _) =>
         {
@@ -98,6 +130,7 @@ public partial class SettingsWindow
         actionsPanel.Children.Add(heading);
         actionsPanel.Children.Add(helper);
         actionsPanel.Children.Add(_chooseCustomIconButton);
+        actionsPanel.Children.Add(_chooseSystemIconButton);
         actionsPanel.Children.Add(_resetCustomIconButton);
         RefreshCustomIconButtonStates();
     }
@@ -108,6 +141,8 @@ public partial class SettingsWindow
             return;
         if (_chooseCustomIconButton != null)
             _chooseCustomIconButton.IsEnabled = vm.CanCustomizeIcon;
+        if (_chooseSystemIconButton != null)
+            _chooseSystemIconButton.IsEnabled = vm.CanCustomizeIcon;
         if (_resetCustomIconButton != null)
             _resetCustomIconButton.IsEnabled = vm.CanResetCustomIcon;
     }

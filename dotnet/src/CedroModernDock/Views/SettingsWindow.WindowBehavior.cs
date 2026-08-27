@@ -18,6 +18,7 @@ public partial class SettingsWindow
         Opened += (_, _) =>
         {
             InstallWindowBehaviorSettingsPanel();
+            InstallBottomAppBarPositioningControls();
             InstallCustomIconControls();
             InstallConfigBackupSettingsPanel();
 
@@ -25,6 +26,7 @@ public partial class SettingsWindow
             {
                 vm.ApplyCustomIconPreviews();
                 RefreshCustomIconButtonStates();
+                RefreshBottomAppBarPositioningUi();
             }
         };
     }
@@ -32,6 +34,7 @@ public partial class SettingsWindow
     /// <summary>
     /// Adds enhanced window-behavior and dock-interaction controls to the
     /// existing General tab without duplicating the whole Settings XAML.
+    /// AppBar is deliberately NOT exposed here; it is an independent positioning mode.
     /// </summary>
     private void InstallWindowBehaviorSettingsPanel()
     {
@@ -49,12 +52,6 @@ public partial class SettingsWindow
         var alwaysOnTop = CreateCheckBox(vm.AlwaysOnTopTitle, vm.AlwaysOnTop);
         alwaysOnTop.Click += (_, _) => vm.AlwaysOnTop = alwaysOnTop.IsChecked == true;
         var alwaysOnTopHelper = CreateHelper(vm.AlwaysOnTopHelper);
-
-        var reserveDesktopSpace = CreateCheckBox(
-            vm.ReserveDesktopSpaceTitle, vm.ReserveDesktopSpace);
-        reserveDesktopSpace.Click += (_, _) =>
-            vm.ReserveDesktopSpace = reserveDesktopSpace.IsChecked == true;
-        var reserveDesktopSpaceHelper = CreateHelper(vm.ReserveDesktopSpaceHelper);
 
         var horizontalEdgeAutoHide = CreateCheckBox(
             vm.HorizontalEdgeAutoHideTitle, vm.AutoHideAtHorizontalEdges);
@@ -98,8 +95,6 @@ public partial class SettingsWindow
         generalPanel.Children.Insert(insertAt++, heading);
         generalPanel.Children.Insert(insertAt++, alwaysOnTop);
         generalPanel.Children.Insert(insertAt++, alwaysOnTopHelper);
-        generalPanel.Children.Insert(insertAt++, reserveDesktopSpace);
-        generalPanel.Children.Insert(insertAt++, reserveDesktopSpaceHelper);
         generalPanel.Children.Insert(insertAt++, horizontalEdgeAutoHide);
         generalPanel.Children.Insert(insertAt++, horizontalEdgeHelper);
         generalPanel.Children.Insert(insertAt++, verticalEdgeAutoHide);

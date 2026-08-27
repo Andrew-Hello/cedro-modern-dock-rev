@@ -32,6 +32,22 @@ public partial class SettingsWindow
 
         _customIconPanelInstalled = true;
 
+        // Script launchers deliberately use their own picker instead of being
+        // mixed into the EXE picker. This makes it clear that BAT/CMD/VBS items
+        // are supported launch targets while preserving the familiar EXE flow.
+        var addScriptButton = new Button
+        {
+            Content = vm.AddScriptText,
+            Background = new SolidColorBrush(Color.Parse("#444444")),
+            Foreground = Brushes.White,
+            BorderBrush = Brushes.Transparent,
+            Padding = new Thickness(12, 6),
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left,
+            Margin = new Thickness(0, 2, 0, 2)
+        };
+        addScriptButton.Click += async (_, _) => await vm.AddScriptAsync(this);
+        actionsPanel.Children.Add(addScriptButton);
+
         var heading = new TextBlock
         {
             Text = vm.CustomIconTitle,

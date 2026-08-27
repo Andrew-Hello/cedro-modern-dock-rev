@@ -1,5 +1,66 @@
 # Cedro Modern Dock Rev — Changelog
 
+## Rev v1.3.0 — 2026-08-27
+
+Fourth stable Rev release, focused on a dedicated, conservative Bottom AppBar positioning mode that lets maximized Windows applications avoid the Dock without mixing AppBar reservations into Static or Dynamic positioning.
+
+### Dedicated Bottom AppBar mode
+
+- Added `BOTTOM_APPBAR` as a third positioning mode alongside Static and Dynamic.
+- Removed AppBar activation from the General-tab `reserveDesktopSpace` preference path; legacy saved values no longer activate AppBar behavior.
+- Static and Dynamic positioning never register a Windows AppBar.
+- Bottom AppBar is intentionally limited to the bottom screen edge and always uses a horizontal Dock.
+- Added only three valid Bottom AppBar alignments: Left, Center and Right.
+- Bottom AppBar sits directly above the Windows taskbar/work-area boundary.
+- Free drag, arbitrary screen-spacing controls and vertical Dock layout are not available while Bottom AppBar owns the Shell reservation.
+- Entering Bottom AppBar clears legacy dynamic-edge state and disables the four-edge auto-hide state so the two positioning systems cannot compete.
+
+### AppBar lifecycle stability redesign
+
+- Replaced the earlier general-purpose AppBar experiment with a single-reservation lifecycle managed only by the dedicated mode.
+- `ABM_NEW` is issued at most once per Bottom AppBar mode activation.
+- `ABM_QUERYPOS` is used only during the initial registration, before Cedro changes the Windows work area.
+- The negotiated lower boundary is then kept fixed for the lifetime of that AppBar registration.
+- Subsequent height changes reuse the same registration with `ABM_SETPOS`; Cedro does not re-query an already-reduced work area.
+- Removed the periodic AppBar Shell polling path.
+- Removed the `ABN_POSCHANGED` feedback/callback loop from the AppBar implementation.
+- Opening or closing Settings no longer registers, removes, or renegotiates AppBar geometry.
+- Horizontal Left/Center/Right changes reposition the Dock without changing the reserved work-area height.
+- Leaving Bottom AppBar or exiting Cedro sends `ABM_REMOVE` once and restores normal Windows work-area ownership.
+- Cedro releases the AppBar before resolving a new Static/Dynamic position, avoiding accidental use of the previous reduced work area as an extra margin.
+
+### Taskbar coexistence
+
+- Initial AppBar negotiation uses the taskbar-aware work area before Cedro registers itself.
+- The Windows taskbar remains the fixed lower boundary; Cedro reserves only the strip immediately above it.
+- Existing bottom taskbar avoidance remains intact for normal Static/Dynamic edge docking.
+- Bottom AppBar never attempts to claim or overlap the taskbar's own screen edge.
+
+### Height-change compatibility
+
+- Bottom AppBar now observes the real native SizeToContent Dock height.
+- Added a short debounce so several Avalonia layout changes collapse into one AppBar height update.
+- Changes to Dock vertical padding and icon size update the existing AppBar reservation rather than creating a new reservation.
+- Running-indicator visibility/state and other actual layout-height changes use the same single-reservation update path.
+- Height updates are no-ops when the native Dock height has not changed, so harmless Dock refreshes do not touch Windows Shell geometry.
+
+### Isolation and safety guards
+
+- Core edge-auto-hide getters return disabled while `BOTTOM_APPBAR` is active, protecting imported/legacy configurations that still contain enabled edge-auto-hide fields.
+- Only true Static positioning uses the legacy static `SizeChanged → ApplyDockPosition` route; Bottom AppBar geometry is controlled exclusively by its AppBar module.
+- Bottom AppBar runtime forces horizontal layout if an imported configuration contains a contradictory vertical-Dock value.
+- AppBar cleanup is explicitly performed during the main-window close lifecycle before the HWND is discarded.
+- The redesigned architecture was verified by Windows CI and then validated on real Windows hardware without the previous recursive/nested work-area drift.
+
+### Compatibility
+
+- Existing Rev v1.2.0, v1.1.0, v1.0.0 and upstream-compatible configurations remain loadable.
+- The old `reserveDesktopSpace` field may remain in JSON for backward compatibility but is no longer an AppBar activation switch.
+- Existing Static/Dynamic four-edge docking behavior remains available outside Bottom AppBar mode.
+- Rev v1.2.0 remains frozen as the previous known-good rollback baseline.
+
+---
+
 ## Rev v1.2.0 — 2026-08-27
 
 Third stable Rev release, focused on script launchers and a full Windows system-icon resource browser.

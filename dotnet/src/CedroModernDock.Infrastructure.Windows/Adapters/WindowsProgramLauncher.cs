@@ -4,9 +4,10 @@ using System.Diagnostics;
 using CedroModernDock.Core.Domain;
 
 /// <summary>
-/// Launches classic executables and enhanced Windows shell targets. Shell
-/// targets allow packaged apps/UWP apps and installed web apps to be pinned by
-/// AppUserModelID instead of requiring a directly executable .exe path.
+/// Launches classic executables, Windows script launchers and enhanced Windows
+/// shell targets. Shell targets allow packaged apps/UWP apps and installed web
+/// apps to be pinned by AppUserModelID instead of requiring a directly
+/// executable .exe path.
 /// </summary>
 public class WindowsProgramLauncher : IProgramLauncher
 {
@@ -27,6 +28,9 @@ public class WindowsProgramLauncher : IProgramLauncher
 
             if (IsShellHandledFile(executablePath))
                 return LaunchShellHandledFile(executablePath, label);
+
+            if (IsScriptLauncher(executablePath))
+                return LaunchScriptFile(executablePath, label);
 
             return ExecuteAndHandleElevation(executablePath, label);
         }
@@ -49,6 +53,14 @@ public class WindowsProgramLauncher : IProgramLauncher
         return extension.Equals(".lnk", StringComparison.OrdinalIgnoreCase)
                || extension.Equals(".url", StringComparison.OrdinalIgnoreCase)
                || extension.Equals(".appref-ms", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsScriptLauncher(string target)
+    {
+        string extension = Path.GetExtension(target);
+        return extension.Equals(".bat", StringComparison.OrdinalIgnoreCase)
+               || extension.Equals(".cmd", StringComparison.OrdinalIgnoreCase)
+               || extension.Equals(".vbs", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool LaunchShellNamespaceTarget(string target, string label)
@@ -91,6 +103,31 @@ public class WindowsProgramLauncher : IProgramLauncher
             UseShellExecute = true
         });
         Debug.WriteLine($"Executing shell-handled shortcut: {label}");
+        return true;
+    }
+
+    /// <summary>
+    /// Launches BAT/CMD/VBS files using their normal Windows Shell association,
+    /// equivalent to double-clicking them in Explorer. The script directory is
+    /// explicitly used as the working directory so existing wrappers that call
+    /// sibling .ps1 files or other relative resources continue to work.
+    /// </summary>
+    private static bool LaunchScriptFile(string path, string label)
+    {
+        if (!File.Exists(path))
+            return false;
+
+        string? workingDirectory = Path.GetDirectoryName(path);
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = path,
+            UseShellExecute = true
+        };
+        if (!string.IsNullOrWhiteSpace(workingDirectory))
+            startInfo.WorkingDirectory = workingDirectory;
+
+        Process.Start(startInfo);
+        Debug.WriteLine($"Executing script launcher: {label} -> {path}");
         return true;
     }
 

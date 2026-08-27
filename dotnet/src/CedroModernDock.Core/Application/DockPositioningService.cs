@@ -83,11 +83,17 @@ public class DockPositioningService
         _dockService.SaveChanges();
     }
 
+    public bool IsStaticPositioning() => GetPositioningMode() == DockPositioningMode.STATIC;
     public bool IsDynamicPositioning() => GetPositioningMode() == DockPositioningMode.DYNAMIC;
+    public bool IsBottomAppBarPositioning() => GetPositioningMode() == DockPositioningMode.BOTTOM_APPBAR;
 
     /// <summary>
     /// Computes the dock's screen position based on the current positioning mode.
     /// Returns (x, y) in device pixels.
+    ///
+    /// BOTTOM_APPBAR gets a safe pre-registration position only. Once the native
+    /// AppBar reservation is active, MainWindow owns its exact position and never
+    /// feeds the Shell-reduced working area back through this calculation.
     /// </summary>
     public (double X, double Y) ResolvePosition(double windowWidth, double windowHeight)
     {
@@ -100,6 +106,20 @@ public class DockPositioningService
             return (0, 0);
 
         var bounds = _screenBoundsProvider.GetPrimaryScreenBounds();
+
+        if (dock.PositioningMode == DockPositioningMode.BOTTOM_APPBAR)
+        {
+            double appBarX = dock.HorizontalAnchor switch
+            {
+                DockHorizontalAnchor.LEFT => bounds.MinX,
+                DockHorizontalAnchor.MIDDLE => bounds.MinX + ((bounds.Width - windowWidth) / 2),
+                DockHorizontalAnchor.RIGHT => bounds.MaxX - windowWidth,
+                _ => bounds.MinX
+            };
+            double appBarY = bounds.MaxY - windowHeight;
+            return (SnapToPixel(appBarX), SnapToPixel(appBarY));
+        }
+
         double x = SnapToPixel(ResolveHorizontalPosition(bounds, windowWidth, dock));
         double y = SnapToPixel(ResolveVerticalPosition(bounds, windowHeight, dock));
         return (x, y);

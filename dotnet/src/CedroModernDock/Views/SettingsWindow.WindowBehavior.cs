@@ -50,6 +50,12 @@ public partial class SettingsWindow
         alwaysOnTop.Click += (_, _) => vm.AlwaysOnTop = alwaysOnTop.IsChecked == true;
         var alwaysOnTopHelper = CreateHelper(vm.AlwaysOnTopHelper);
 
+        var reserveDesktopSpace = CreateCheckBox(
+            vm.ReserveDesktopSpaceTitle, vm.ReserveDesktopSpace);
+        reserveDesktopSpace.Click += (_, _) =>
+            vm.ReserveDesktopSpace = reserveDesktopSpace.IsChecked == true;
+        var reserveDesktopSpaceHelper = CreateHelper(vm.ReserveDesktopSpaceHelper);
+
         var horizontalEdgeAutoHide = CreateCheckBox(
             vm.HorizontalEdgeAutoHideTitle, vm.AutoHideAtHorizontalEdges);
         horizontalEdgeAutoHide.Click += (_, _) =>
@@ -92,6 +98,8 @@ public partial class SettingsWindow
         generalPanel.Children.Insert(insertAt++, heading);
         generalPanel.Children.Insert(insertAt++, alwaysOnTop);
         generalPanel.Children.Insert(insertAt++, alwaysOnTopHelper);
+        generalPanel.Children.Insert(insertAt++, reserveDesktopSpace);
+        generalPanel.Children.Insert(insertAt++, reserveDesktopSpaceHelper);
         generalPanel.Children.Insert(insertAt++, horizontalEdgeAutoHide);
         generalPanel.Children.Insert(insertAt++, horizontalEdgeHelper);
         generalPanel.Children.Insert(insertAt++, verticalEdgeAutoHide);

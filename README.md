@@ -2,7 +2,7 @@
 
 > A Windows Dock / Quick Launch enhancement fork based on [Cedro Modern Dock](https://github.com/Cedro-Software/cedro-modern-dock).
 >
-> **Rev v1.2.0** adds Windows script launchers and a multi-library Windows system-icon browser with lightweight `IconSource + IconIndex` persistence, while retaining the original GPL-3.0 license and upstream attribution.
+> **Rev v1.3.0** adds a dedicated, stability-focused Bottom AppBar positioning mode so maximized windows can avoid the Dock without mixing AppBar state into Static or Dynamic positioning, while retaining the original GPL-3.0 license and upstream attribution.
 
 ![.NET](https://img.shields.io/badge/.NET-9-5122d3?style=for-the-badge&logo=dotnet&logoColor=white)
 ![Avalonia](https://img.shields.io/badge/Avalonia-11.3-0080ff?style=for-the-badge&logo=avalonia&logoColor=white)
@@ -10,6 +10,45 @@
 ![License](https://img.shields.io/github/license/Andrew-Hello/cedro-modern-dock-rev?style=for-the-badge)
 
 Cedro Modern Dock Rev keeps the lightweight launcher workflow of the upstream project, while adding stronger Windows desktop integration, taskbar-like running-app behavior, edge docking, application identity support, script launchers, portable configuration backup/restore and flexible per-item icon overrides.
+
+## Rev v1.3.0 highlights
+
+### Dedicated Bottom AppBar positioning mode
+
+Rev v1.3.0 introduces **Bottom AppBar** as a third positioning mode alongside Static and Dynamic positioning.
+
+- **Static positioning** and **Dynamic positioning** never register a Windows AppBar.
+- **Bottom AppBar** is an intentionally constrained Shell-integration mode designed only for the bottom of the screen.
+- The Dock is always horizontal and sits directly above the Windows taskbar/work-area boundary.
+- Only three horizontal alignments are available: **Left**, **Center** and **Right**.
+- Free dragging and screen-spacing controls are disabled in this mode.
+- Four-edge auto-hide is isolated from Bottom AppBar and does not run concurrently with it.
+- Switching away from Bottom AppBar or exiting Cedro immediately releases the Windows work-area reservation.
+
+This lets normal maximized applications stop at the Dock's upper edge instead of extending underneath an Always-on-top Dock.
+
+### Conservative AppBar lifecycle
+
+The Bottom AppBar implementation deliberately avoids continuously renegotiating Windows work-area geometry.
+
+- `ABM_NEW` is sent once when the dedicated mode becomes active.
+- The legal bottom boundary is negotiated once against the existing taskbar/other AppBars.
+- Subsequent Dock-height changes update the same reservation instead of registering another AppBar.
+- The already-reduced Windows work area is never fed back into AppBar placement calculations, preventing recursive inward drift or stacked/nested reservations.
+- There is no periodic AppBar polling and no `ABN_POSCHANGED` feedback loop.
+- Opening or closing the Settings window does not register, remove or re-query the AppBar.
+- Legacy `reserveDesktopSpace` configuration data is ignored as an activation mechanism; only the explicit `BOTTOM_APPBAR` positioning mode can own an AppBar reservation.
+
+### Taskbar-aware placement and dynamic height compatibility
+
+- Bottom AppBar negotiates its initial boundary before Cedro modifies the Windows work area, preserving the taskbar as the hard lower boundary.
+- The Dock remains directly above the taskbar rather than competing for or overlapping the taskbar edge.
+- Cedro watches the actual SizeToContent Dock height and applies a short debounce before updating an existing AppBar reservation.
+- Changes to icon size, Dock vertical padding and other real layout-height changes therefore remain compatible with the reserved desktop area.
+- Running-indicator visibility/state changes are handled through the same single-reservation height-update path.
+- Left / Center / Right alignment changes move only the Dock horizontally and do not change the reserved work-area height.
+
+The Bottom AppBar architecture in Rev v1.3.0 was redesigned after testing of a more general AppBar experiment showed that mixing Shell reservations with free edge positioning could create recursive work-area changes. Rev v1.3.0 intentionally narrows the feature to a single, predictable bottom-edge contract.
 
 ## Rev v1.2.0 highlights
 
@@ -23,7 +62,7 @@ Cedro Modern Dock Rev keeps the lightweight launcher workflow of the upstream pr
 
 ### Windows system icon center
 
-The custom-icon picker can now browse a curated set of icon-bearing Windows DLL/EXE resources instead of being limited to `SHELL32.dll`.
+The custom-icon picker can browse a curated set of icon-bearing Windows DLL/EXE resources instead of being limited to `SHELL32.dll`.
 
 Built-in catalog:
 
@@ -63,8 +102,8 @@ Because icon indexes are a Windows resource implementation detail, the exact ico
 - True transparent top-level Dock composition: desktop icons and labels remain visible through the Dock background.
 - Optional **Always on top** behavior.
 - Automatically suspends topmost while another application or game is truly fullscreen, then restores it afterwards.
-- Dynamic or static Dock positioning.
-- Four-edge docking and auto-hide:
+- Three positioning modes in Rev v1.3.0: Static, Dynamic and Bottom AppBar.
+- Four-edge docking and auto-hide remain available to the normal Static/Dynamic workflow:
   - Top / Bottom can be enabled independently from Left / Right.
   - Dynamic mode supports drag-to-edge magnetic docking.
   - Bottom docking respects the Windows taskbar work area instead of overlapping it.
@@ -78,7 +117,7 @@ Because icon indexes are a Windows resource implementation detail, the exact ico
 - Optional hover magnification.
 - Optional hover application-name labels.
 - Optional live window previews.
-- Existing transparency, color, rounding, spacing, icon size, tint, horizontal/vertical layout and other upstream customization remain available.
+- Existing transparency, color, rounding, spacing, icon size, tint, horizontal/vertical layout and other upstream customization remain available where compatible with the selected positioning mode.
 
 ### Running applications and pinning
 
@@ -95,7 +134,7 @@ Because icon indexes are a Windows resource implementation detail, the exact ico
 The recommended build is the portable Windows x64 package attached to the latest **Cedro Modern Dock Rev** GitHub Release:
 
 1. Open this repository's **Releases** page.
-2. Download `CedroModernDock-Rev-v1.2.0-win-x64.zip` (or a newer Rev release).
+2. Download `CedroModernDock-Rev-v1.3.0-win-x64.zip` (or a newer Rev release).
 3. Extract it to a normal writable folder.
 4. Run `CedroModernDock.exe`.
 
@@ -187,10 +226,11 @@ dotnet run --project src/CedroModernDock
 
 - `main` — current stable Rev source shown on the repository homepage.
 - `cedro-enhanced-window` — active Rev development branch.
+- `stable/rev-v1.3.0` — frozen Rev v1.3.0 baseline.
 - `stable/rev-v1.2.0` — frozen Rev v1.2.0 baseline.
 - `stable/rev-v1.1.0` — frozen Rev v1.1.0 baseline.
 - `stable/rev-v1.0.0` — frozen first stable Rev baseline.
-- Latest release tag: `rev-v1.2.0`.
+- Latest release tag: `rev-v1.3.0`.
 
 Frozen baselines remain separate so future experimental changes can continue without losing known-good rollback points.
 

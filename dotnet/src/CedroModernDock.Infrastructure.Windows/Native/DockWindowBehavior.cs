@@ -11,17 +11,33 @@ using System;
 /// over desktop icons while allowing topmost to be enabled or disabled at runtime.</item>
 /// <item><b>Subclass</b> — defense in depth: intercepts minimize commands
 /// (SC_MINIMIZE, SIZE_MINIMIZED) so Win+D does not permanently hide the dock.</item>
+/// <item><b>Display environment notification</b> — forwards only genuine display
+/// resolution/topology and per-monitor DPI changes. Work-area notifications are
+/// intentionally ignored because AppBar itself changes the work area.</item>
 /// </list>
 /// </summary>
 public sealed class DockWindowBehavior : IDisposable
 {
     private static readonly IntPtr HwndNotTopmost = new(-2);
 
+    // These are deliberately kept local instead of broadening the shared Win32
+    // surface. They are the only native messages Bottom AppBar needs in order to
+    // re-negotiate after a monitor/resolution/DPI transition.
+    private const uint WM_DISPLAYCHANGE = 0x007E;
+    private const uint WM_DPICHANGED = 0x02E0;
+
     private IntPtr _hwnd;
     private readonly Action<string>? _onStatus;
     private SubclassProc? _subclassProc; // kept alive to prevent GC of the native callback
     private bool _subclassed;
     private bool _topmostEnabled;
+
+    /// <summary>
+    /// Raised on the window thread after Windows reports a display topology /
+    /// resolution change or a per-monitor DPI change. Consumers should debounce
+    /// this event because a physical monitor transition may emit both messages.
+    /// </summary>
+    public event Action? DisplayEnvironmentChanged;
 
     public DockWindowBehavior(IntPtr hwnd, Action<string>? onStatus = null)
     {
@@ -128,6 +144,26 @@ public sealed class DockWindowBehavior : IDisposable
             _onStatus?.Invoke("Restored from SIZE_MINIMIZED (Win+D defense)");
         }
 
+        // 3. A Bottom AppBar negotiated on one monitor cannot safely reuse that
+        //    monitor's fixed boundary after resolution/DPI/topology changes.
+        //    Notify the UI layer, which performs a deliberately debounced full
+        //    remove-and-register cycle. Do NOT listen to WM_SETTINGCHANGE here:
+        //    AppBar's own work-area changes can generate it and recreate the old
+        //    recursive feedback problem.
+        if (uMsg == WM_DISPLAYCHANGE || uMsg == WM_DPICHANGED)
+        {
+            try
+            {
+                DisplayEnvironmentChanged?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                // Never let managed subscriber failures escape a native window
+                // subclass callback; doing so could destabilize Explorer/windowing.
+                _onStatus?.Invoke($"WARNING: display-change handler failed: {ex.Message}");
+            }
+        }
+
         return Comctl32.DefSubclassProc(hWnd, uMsg, wParam, lParam);
     }
 
@@ -139,6 +175,7 @@ public sealed class DockWindowBehavior : IDisposable
             _subclassed = false;
         }
 
+        DisplayEnvironmentChanged = null;
         _subclassProc = null;
         _hwnd = IntPtr.Zero;
     }

@@ -41,7 +41,10 @@ public class RunningAppViewModel : ViewModelBase
         set
         {
             if (SetProperty(ref _isRunning, value))
+            {
                 OnPropertyChanged(nameof(IndicatorVisible));
+                OnPropertyChanged(nameof(IndicatorIconOffsetY));
+            }
         }
     }
 
@@ -57,11 +60,20 @@ public class RunningAppViewModel : ViewModelBase
         set
         {
             if (SetProperty(ref _showRunningIndicator, value))
+            {
                 OnPropertyChanged(nameof(IndicatorVisible));
+                OnPropertyChanged(nameof(IndicatorIconOffsetY));
+            }
         }
     }
 
     public bool IndicatorVisible => ShowRunningIndicator && IsRunning;
+
+    /// <summary>
+    /// XAML permanently reserves the indicator slot. The icon only moves within
+    /// that fixed slot, so showing/hiding a dot never changes Dock/AppBar height.
+    /// </summary>
+    public double IndicatorIconOffsetY => IndicatorVisible ? 0d : 3d;
 
     public bool EnableHoverMagnification
     {

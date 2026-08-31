@@ -52,7 +52,10 @@ public class DockItemViewModel : ViewModelBase
         set
         {
             if (SetProperty(ref _isRunning, value))
+            {
                 OnPropertyChanged(nameof(IndicatorVisible));
+                OnPropertyChanged(nameof(IndicatorIconOffsetY));
+            }
         }
     }
 
@@ -65,11 +68,22 @@ public class DockItemViewModel : ViewModelBase
         set
         {
             if (SetProperty(ref _showRunningIndicator, value))
+            {
                 OnPropertyChanged(nameof(IndicatorVisible));
+                OnPropertyChanged(nameof(IndicatorIconOffsetY));
+            }
         }
     }
 
     public bool IndicatorVisible => ShowIndicator && ShowRunningIndicator && IsRunning;
+
+    /// <summary>
+    /// The indicator owns a permanently reserved 7 px slot in XAML, so changing
+    /// running state never changes Button/Dock measure. With no dot the icon is
+    /// visually centered 3 px lower; when the dot appears it moves up 3 px into
+    /// the reserved slot without affecting layout size.
+    /// </summary>
+    public double IndicatorIconOffsetY => IndicatorVisible ? 0d : 3d;
 
     public bool EnableHoverMagnification
     {

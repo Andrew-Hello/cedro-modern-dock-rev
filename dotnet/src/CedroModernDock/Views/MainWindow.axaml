@@ -83,17 +83,32 @@
                                         <Setter Property="Background" Value="Transparent" />
                                     </Style>
                                 </Button.Styles>
-                                <StackPanel Orientation="Vertical" Spacing="3"
-                                            HorizontalAlignment="Center">
-                                    <Image Source="{Binding Icon}"
+                                <!--
+                                    Keep the item height invariant whether or not the running
+                                    indicator is visible. The second row permanently reserves
+                                    the old 3 px spacing + 4 px dot (= 7 px). The icon only
+                                    translates inside this fixed footprint, so running-state
+                                    changes no longer resize the Dock/AppBar.
+                                -->
+                                <Grid RowDefinitions="Auto,7"
+                                      HorizontalAlignment="Center"
+                                      ClipToBounds="False">
+                                    <Image Grid.Row="0"
+                                           Source="{Binding Icon}"
                                            Width="{Binding IconSize}"
                                            Height="{Binding IconSize}"
                                            Stretch="Uniform"
-                                           RenderOptions.BitmapInterpolationMode="HighQuality" />
-                                    <Ellipse Width="4" Height="4"
+                                           RenderOptions.BitmapInterpolationMode="HighQuality">
+                                        <Image.RenderTransform>
+                                            <TranslateTransform Y="{Binding IndicatorIconOffsetY}" />
+                                        </Image.RenderTransform>
+                                    </Image>
+                                    <Ellipse Grid.Row="1"
+                                             Width="4" Height="4"
                                              Fill="White"
+                                             VerticalAlignment="Bottom"
                                              IsVisible="{Binding IndicatorVisible}" />
-                                </StackPanel>
+                                </Grid>
                             </Button>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -166,17 +181,25 @@
                                         <Setter Property="Background" Value="Transparent" />
                                     </Style>
                                 </Button.Styles>
-                                <StackPanel Orientation="Vertical" Spacing="3"
-                                            HorizontalAlignment="Center">
-                                    <Image Source="{Binding Icon}"
+                                <Grid RowDefinitions="Auto,7"
+                                      HorizontalAlignment="Center"
+                                      ClipToBounds="False">
+                                    <Image Grid.Row="0"
+                                           Source="{Binding Icon}"
                                            Width="{Binding IconSize}"
                                            Height="{Binding IconSize}"
                                            Stretch="Uniform"
-                                           RenderOptions.BitmapInterpolationMode="HighQuality" />
-                                    <Ellipse Width="4" Height="4"
+                                           RenderOptions.BitmapInterpolationMode="HighQuality">
+                                        <Image.RenderTransform>
+                                            <TranslateTransform Y="{Binding IndicatorIconOffsetY}" />
+                                        </Image.RenderTransform>
+                                    </Image>
+                                    <Ellipse Grid.Row="1"
+                                             Width="4" Height="4"
                                              Fill="White"
+                                             VerticalAlignment="Bottom"
                                              IsVisible="{Binding IndicatorVisible}" />
-                                </StackPanel>
+                                </Grid>
                             </Button>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>

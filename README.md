@@ -2,7 +2,7 @@
 
 > A Windows Dock / Quick Launch enhancement fork based on [Cedro Modern Dock](https://github.com/Cedro-Software/cedro-modern-dock).
 >
-> **Rev v1.3.0** adds a dedicated, stability-focused Bottom AppBar positioning mode so maximized windows can avoid the Dock without mixing AppBar state into Static or Dynamic positioning, while retaining the original GPL-3.0 license and upstream attribution.
+> **Rev v1.4.0** improves Bottom AppBar behavior across display/DPI changes, stabilizes Dock height around running indicators, fixes Settings-window Z-order, and introduces a fully redesigned Settings experience, while retaining the original GPL-3.0 license and upstream attribution.
 
 ![.NET](https://img.shields.io/badge/.NET-9-5122d3?style=for-the-badge&logo=dotnet&logoColor=white)
 ![Avalonia](https://img.shields.io/badge/Avalonia-11.3-0080ff?style=for-the-badge&logo=avalonia&logoColor=white)
@@ -10,6 +10,50 @@
 ![License](https://img.shields.io/github/license/Andrew-Hello/cedro-modern-dock-rev?style=for-the-badge)
 
 Cedro Modern Dock Rev keeps the lightweight launcher workflow of the upstream project, while adding stronger Windows desktop integration, taskbar-like running-app behavior, edge docking, application identity support, script launchers, portable configuration backup/restore and flexible per-item icon overrides.
+
+## Rev v1.4.0 highlights
+
+### Display/DPI-aware Bottom AppBar rebinding
+
+Rev v1.4.0 makes the dedicated Bottom AppBar mode more resilient when moving between displays with different resolutions or DPI scaling.
+
+- Cedro listens for native `WM_DISPLAYCHANGE` and `WM_DPICHANGED` events while Bottom AppBar is active.
+- Resolution, monitor-topology and DPI changes are debounced before any Shell work-area operation.
+- The old reservation is removed before Cedro re-detects the active monitor and taskbar boundary.
+- Cedro then establishes one fresh Bottom AppBar reservation for the new display environment.
+- Height updates are suspended during rebinding so Avalonia layout events from the new DPI cannot accidentally update an old-monitor reservation.
+- `WM_SETTINGCHANGE` / `SPI_SETWORKAREA` are intentionally not used as triggers, avoiding a feedback path where Cedro could respond to its own work-area changes.
+
+This is especially useful when switching between a high-DPI laptop panel and a larger external monitor.
+
+### Stable running-indicator geometry
+
+Running indicator dots no longer change the Dock window height.
+
+- Every icon reserves a fixed indicator slot whether a program is running or not.
+- When a dot appears, the icon shifts slightly upward inside the already-reserved space.
+- Starting or closing applications therefore no longer changes the Dock/AppBar height.
+- Toggling the global running-indicator preference also leaves the Dock height unchanged.
+
+This prevents maximized-window geometry and Bottom AppBar positioning from moving simply because running-state dots appear or disappear.
+
+### Redesigned Settings experience
+
+The Settings window has been rebuilt around a desktop-style information architecture instead of the increasingly stretched top-tab layout.
+
+- Left-side navigation replaces the old horizontal tab strip.
+- The right-side content surface uses bounded widths instead of expanding across the full width of a 2K/4K display.
+- Default window size is 1000×700 with practical resize limits.
+- Every settings page owns its own scroll region.
+- Dock Items now uses a dedicated item list plus compact action and custom-icon cards.
+- Dock appearance, icon appearance and General settings use compact card/grid layouts.
+- The XAML now defines the final page structure directly instead of creating legacy tabs first and rearranging them after `Opened`.
+
+### Settings Z-order correction
+
+Settings is no longer an owned child of the Always-on-top Dock window.
+
+This fixes a long-standing Windows owned-window Z-order issue where Settings could remain above dialogs it opened. The Windows system-icon picker, color pickers, module window and other Settings-owned dialogs can now appear naturally above the Settings window.
 
 ## Rev v1.3.0 highlights
 
@@ -102,7 +146,7 @@ Because icon indexes are a Windows resource implementation detail, the exact ico
 - True transparent top-level Dock composition: desktop icons and labels remain visible through the Dock background.
 - Optional **Always on top** behavior.
 - Automatically suspends topmost while another application or game is truly fullscreen, then restores it afterwards.
-- Three positioning modes in Rev v1.3.0: Static, Dynamic and Bottom AppBar.
+- Three positioning modes in Rev v1.3.0 and later: Static, Dynamic and Bottom AppBar.
 - Four-edge docking and auto-hide remain available to the normal Static/Dynamic workflow:
   - Top / Bottom can be enabled independently from Left / Right.
   - Dynamic mode supports drag-to-edge magnetic docking.
@@ -134,7 +178,7 @@ Because icon indexes are a Windows resource implementation detail, the exact ico
 The recommended build is the portable Windows x64 package attached to the latest **Cedro Modern Dock Rev** GitHub Release:
 
 1. Open this repository's **Releases** page.
-2. Download `CedroModernDock-Rev-v1.3.0-win-x64.zip` (or a newer Rev release).
+2. Download `CedroModernDock-Rev-v1.4.0-win-x64.zip` (or a newer Rev release).
 3. Extract it to a normal writable folder.
 4. Run `CedroModernDock.exe`.
 
@@ -226,11 +270,12 @@ dotnet run --project src/CedroModernDock
 
 - `main` — current stable Rev source shown on the repository homepage.
 - `cedro-enhanced-window` — active Rev development branch.
+- `stable/rev-v1.4.0` — frozen Rev v1.4.0 baseline.
 - `stable/rev-v1.3.0` — frozen Rev v1.3.0 baseline.
 - `stable/rev-v1.2.0` — frozen Rev v1.2.0 baseline.
 - `stable/rev-v1.1.0` — frozen Rev v1.1.0 baseline.
 - `stable/rev-v1.0.0` — frozen first stable Rev baseline.
-- Latest release tag: `rev-v1.3.0`.
+- Latest release tag: `rev-v1.4.0`.
 
 Frozen baselines remain separate so future experimental changes can continue without losing known-good rollback points.
 

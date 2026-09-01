@@ -28,9 +28,6 @@ public partial class SettingsWindow : Window
     {
         InitializeComponent();
         InitializeWindowBehaviorSettingsHooks();
-        // ListBoxItem marks PointerPressed as handled while it updates the
-        // selection, which would skip a normal (bubble) handler on the ListBox.
-        // Subscribe with handledEventsToo so the drag gesture still sees presses.
         ItemsList.AddHandler(
             InputElement.PointerPressedEvent,
             OnItemsPointerPressed,
@@ -41,7 +38,6 @@ public partial class SettingsWindow : Window
     public static void Open(AppServices appServices, Window owner,
         Action dockRefreshAction, Action<DockPositioningMode> positioningModeChangeAction)
     {
-        // Only one settings window at a time: focus the existing one.
         if (_instance != null)
         {
             _instance.WindowState = WindowState.Normal;
@@ -58,7 +54,11 @@ public partial class SettingsWindow : Window
         _instance = window;
         window.Closed += (_, _) => _instance = null;
         vm.Initialize();
-        window.Show(owner);
+
+        // Do not make Settings an owned child of the always-on-top Dock. Native
+        // Windows owned-window z-order can otherwise promote Settings into the
+        // topmost band and make it cover dialogs opened from Settings itself.
+        window.Show();
     }
 
     private SettingsViewModel Vm => _vm ??= (DataContext as SettingsViewModel)!;
@@ -73,8 +73,6 @@ public partial class SettingsWindow : Window
         if (_appServices != null && _dockRefreshAction != null)
         {
             await AddWindowsModulesWindow.Open(_appServices, _dockRefreshAction, this);
-            // Refresh the dock-items list after the modal closes: adding a
-            // module must show up immediately, not only after reopening.
             Vm?.RefreshItemLabels();
         }
     }
@@ -83,16 +81,10 @@ public partial class SettingsWindow : Window
     private void OnMoveUp(object? sender, RoutedEventArgs e) => Vm?.MoveItemUp();
     private void OnMoveDown(object? sender, RoutedEventArgs e) => Vm?.MoveItemDown();
 
-    // --- Drag-to-reorder the dock items list ---
-
     private void OnItemsPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
 
-        // The pressed row must be resolved from the event source, not
-        // SelectedIndex: ListBoxItem handles the press for selection (marking
-        // the event handled), so our ListBox-level handler runs afterwards via
-        // handledEventsToo and the selection binding may not be committed yet.
         if (e.Source is Visual source && source.FindAncestorOfType<ListBoxItem>() is { } container)
         {
             _dragSourceIndex = ItemsList.IndexFromContainer(container);
@@ -113,7 +105,6 @@ public partial class SettingsWindow : Window
         if (Math.Abs(dx) < DragThresholdPixels && Math.Abs(dy) < DragThresholdPixels)
             return;
 
-        // Only reordering within this list is allowed (no cross-window drops).
         _dragInProgress = true;
         var data = new DataTransfer();
         data.Add(DataTransferItem.CreateText(_dragSourceIndex.ToString()));
@@ -125,7 +116,6 @@ public partial class SettingsWindow : Window
 
     private void OnItemsPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        // No drag was ever started: clear the pending press state.
         _dragSourceIndex = -1;
         _dragInProgress = false;
     }
@@ -163,19 +153,11 @@ public partial class SettingsWindow : Window
         e.Handled = true;
     }
 
-    /// <summary>
-    /// Resolves the pointer position inside the (possibly scrolled) list to a
-    /// "gap index" (0..Count) plus the screen Y of that gap. Works with
-    /// virtualized containers: it walks the realized rows, uses each container's
-    /// true index (so scrolled items keep their real position), and splits each
-    /// row at its vertical midpoint to decide before/after.
-    /// </summary>
     private (int GapIndex, double GapY) ResolveDropGap(Point position)
     {
         int count = Vm?.ItemEntries.Count ?? 0;
         if (count == 0) return (0, 0);
 
-        // Collect realized rows: index + viewport-relative top/height.
         var rows = new List<(int Index, double Top, double Height)>();
         foreach (var container in ItemsList.GetRealizedContainers())
         {
@@ -190,12 +172,10 @@ public partial class SettingsWindow : Window
         if (rows.Count == 0) return (0, 0);
         rows.Sort((a, b) => a.Index.CompareTo(b.Index));
 
-        // Above the first realized row: gap at its index (its top line).
         var first = rows[0];
         if (position.Y < first.Top)
             return (first.Index, first.Top);
 
-        // Inside a realized row: split at the midpoint.
         for (int i = 0; i < rows.Count; i++)
         {
             var row = rows[i];
@@ -209,7 +189,6 @@ public partial class SettingsWindow : Window
             }
         }
 
-        // Below the last realized row: gap right after it.
         var last = rows[^1];
         return (Math.Min(last.Index + 1, count), last.Top + last.Height);
     }
@@ -234,13 +213,13 @@ public partial class SettingsWindow : Window
             AcknowledgementsWindow.Open(this, _appServices.LocalizationService);
     }
 
-    private void OnPresetColorPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    private void OnPresetColorPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is Border { DataContext: ISolidColorBrush brush })
             Vm.DockColor = brush.Color;
     }
 
-    private void OnTintPresetColorPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    private void OnTintPresetColorPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is Border { DataContext: ISolidColorBrush brush })
             Vm.TintColor = brush.Color;
@@ -256,7 +235,7 @@ public partial class SettingsWindow : Window
             Height = 420,
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = new Avalonia.Media.SolidColorBrush(Color.Parse("#1E1E1E")),
+            Background = new SolidColorBrush(Color.Parse("#1E1E1E")),
             Content = new ColorView
             {
                 Color = vm.TintColor,
@@ -283,7 +262,7 @@ public partial class SettingsWindow : Window
             Height = 420,
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = new Avalonia.Media.SolidColorBrush(Color.Parse("#1E1E1E")),
+            Background = new SolidColorBrush(Color.Parse("#1E1E1E")),
             Content = new ColorView
             {
                 Color = vm.DockColor,

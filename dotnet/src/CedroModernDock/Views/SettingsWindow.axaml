@@ -67,7 +67,6 @@
     </Window.Styles>
 
     <Grid RowDefinitions="Auto,*">
-        <!-- Stable header: it never scrolls with the active page. -->
         <Border Grid.Row="0" Background="#202020" BorderBrush="#303030" BorderThickness="0,0,0,1" Padding="22,16">
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Spacing="2">
@@ -83,15 +82,11 @@
         </Border>
 
         <TabControl Grid.Row="1" TabStripPlacement="Left" Background="Transparent" Padding="12,14,16,16">
-
-            <!-- 1. Dock items -------------------------------------------------- -->
+            <!-- Dock items -->
             <TabItem Header="{Binding TabIcons}">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                              AllowAutoHide="False">
-                    <Grid ColumnDefinitions="300,*" ColumnSpacing="16" MaxWidth="820"
-                          HorizontalAlignment="Left" Margin="10,0,6,12">
-                        <Border Grid.Column="0" Background="#222222" BorderBrush="#333333" BorderThickness="1"
-                                CornerRadius="8" Padding="14">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" AllowAutoHide="False">
+                    <Grid ColumnDefinitions="300,*" ColumnSpacing="16" MaxWidth="820" HorizontalAlignment="Left" Margin="10,0,6,12">
+                        <Border Grid.Column="0" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="14">
                             <Grid RowDefinitions="Auto,*">
                                 <TextBlock Text="{Binding ItemsTitle}" FontSize="15" FontWeight="SemiBold" Foreground="#E0E0E0" Margin="0,0,0,10"/>
                                 <Grid Grid.Row="1">
@@ -115,8 +110,7 @@
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>
-                                    <Border x:Name="DropIndicator" IsVisible="False" Height="2" Background="#007ACC"
-                                            CornerRadius="1" HorizontalAlignment="Stretch" VerticalAlignment="Top"/>
+                                    <Border x:Name="DropIndicator" IsVisible="False" Height="2" Background="#007ACC" CornerRadius="1" HorizontalAlignment="Stretch" VerticalAlignment="Top"/>
                                 </Grid>
                             </Grid>
                         </Border>
@@ -134,8 +128,7 @@
                                         <Button Grid.Row="2" Grid.Column="0" Content="{Binding MoveUpText}" Click="OnMoveUp" IsEnabled="{Binding CanMoveUp}" Background="#3A3A3A" Foreground="White" BorderBrush="Transparent" Padding="12,7"/>
                                         <Button Grid.Row="2" Grid.Column="1" Content="{Binding MoveDownText}" Click="OnMoveDown" IsEnabled="{Binding CanMoveDown}" Background="#3A3A3A" Foreground="White" BorderBrush="Transparent" Padding="12,7"/>
                                     </Grid>
-                                    <Button Content="{Binding RemoveText}" Click="OnRemove" IsEnabled="{Binding CanRemove}"
-                                            Background="#8C3838" Foreground="White" BorderBrush="Transparent" Padding="12,7" HorizontalAlignment="Stretch"/>
+                                    <Button Content="{Binding RemoveText}" Click="OnRemove" IsEnabled="{Binding CanRemove}" Background="#8C3838" Foreground="White" BorderBrush="Transparent" Padding="12,7" HorizontalAlignment="Stretch"/>
                                 </StackPanel>
                             </Border>
 
@@ -143,12 +136,9 @@
                                 <StackPanel Spacing="9">
                                     <TextBlock Text="{Binding CustomIconTitle}" FontSize="15" FontWeight="SemiBold" Foreground="#E0E0E0"/>
                                     <TextBlock Text="{Binding CustomIconHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
-                                    <Button Content="{Binding ChooseCustomIconText}" Click="OnChooseCustomIcon" IsEnabled="{Binding CanCustomizeIcon}"
-                                            Background="#007ACC" Foreground="White" BorderBrush="Transparent" Padding="12,7" HorizontalAlignment="Stretch"/>
-                                    <Button Content="{Binding ChooseSystemIconText}" Click="OnChooseSystemIcon" IsEnabled="{Binding CanCustomizeIcon}"
-                                            Background="#3A3A3A" Foreground="White" BorderBrush="Transparent" Padding="12,7" HorizontalAlignment="Stretch"/>
-                                    <Button Content="{Binding ResetCustomIconText}" Click="OnResetCustomIcon" IsEnabled="{Binding CanResetCustomIcon}"
-                                            Background="#3A3A3A" Foreground="White" BorderBrush="Transparent" Padding="12,7" HorizontalAlignment="Stretch"/>
+                                    <Button Content="{Binding ChooseCustomIconText}" Click="OnChooseCustomIcon" IsEnabled="{Binding CanCustomizeIcon}" Background="#007ACC" Foreground="White" BorderBrush="Transparent" Padding="12,7" HorizontalAlignment="Stretch"/>
+                                    <Button Content="{Binding ChooseSystemIconText}" Click="OnChooseSystemIcon" IsEnabled="{Binding CanCustomizeIcon}" Background="#3A3A3A" Foreground="White" BorderBrush="Transparent" Padding="12,7" HorizontalAlignment="Stretch"/>
+                                    <Button Content="{Binding ResetCustomIconText}" Click="OnResetCustomIcon" IsEnabled="{Binding CanResetCustomIcon}" Background="#3A3A3A" Foreground="White" BorderBrush="Transparent" Padding="12,7" HorizontalAlignment="Stretch"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -156,7 +146,7 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- 2. Positioning ------------------------------------------------- -->
+            <!-- Positioning -->
             <TabItem Header="{Binding TabDockPositioning}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" AllowAutoHide="False">
                     <StackPanel MaxWidth="820" HorizontalAlignment="Left" Spacing="14" Margin="10,0,6,12">
@@ -178,13 +168,9 @@
                                     <TextBlock Text="{Binding AlignmentTitle}" FontSize="14" FontWeight="SemiBold" Foreground="#D8D8D8"/>
                                     <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="8">
                                         <TextBlock Grid.Row="0" Text="{Binding VerticalText}" Foreground="#AAA" VerticalAlignment="Center"/>
-                                        <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding VerticalAnchorOptions}" SelectedItem="{Binding SelectedVerticalOption}" Background="#2D2D2D" Foreground="White">
-                                            <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:AnchorOption"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
-                                        </ComboBox>
+                                        <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding VerticalAnchorOptions}" SelectedItem="{Binding SelectedVerticalOption}" Background="#2D2D2D" Foreground="White"><ComboBox.ItemTemplate><DataTemplate x:DataType="vm:AnchorOption"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox>
                                         <TextBlock Grid.Row="1" Text="{Binding HorizontalText}" Foreground="#AAA" VerticalAlignment="Center"/>
-                                        <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding HorizontalAnchorOptions}" SelectedItem="{Binding SelectedHorizontalOption}" Background="#2D2D2D" Foreground="White">
-                                            <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:HorizontalAnchorOption"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
-                                        </ComboBox>
+                                        <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding HorizontalAnchorOptions}" SelectedItem="{Binding SelectedHorizontalOption}" Background="#2D2D2D" Foreground="White"><ComboBox.ItemTemplate><DataTemplate x:DataType="vm:HorizontalAnchorOption"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox>
                                     </Grid>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="7">
@@ -200,10 +186,7 @@
                         </Border>
 
                         <Border IsVisible="{Binding IsDynamicPositioningSelected}" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
-                            <StackPanel Spacing="7">
-                                <TextBlock Text="{Binding DynamicPosTitle}" FontSize="15" FontWeight="SemiBold" Foreground="#E0E0E0"/>
-                                <TextBlock Text="{Binding DynamicPosHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
-                            </StackPanel>
+                            <StackPanel Spacing="7"><TextBlock Text="{Binding DynamicPosTitle}" FontSize="15" FontWeight="SemiBold" Foreground="#E0E0E0"/><TextBlock Text="{Binding DynamicPosHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/></StackPanel>
                         </Border>
 
                         <Border IsVisible="{Binding IsBottomAppBarMode}" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
@@ -211,79 +194,46 @@
                                 <TextBlock Text="{Binding BottomAppBarTitle}" FontSize="15" FontWeight="SemiBold" Foreground="#E0E0E0"/>
                                 <TextBlock Text="{Binding BottomAppBarHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
                                 <TextBlock Text="{Binding BottomAppBarAlignmentTitle}" FontWeight="SemiBold" Foreground="#CCCCCC" Margin="0,4,0,0"/>
-                                <ComboBox Width="220" HorizontalAlignment="Left" ItemsSource="{Binding HorizontalAnchorOptions}" SelectedItem="{Binding SelectedHorizontalOption}" Background="#2D2D2D" Foreground="White">
-                                    <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:HorizontalAnchorOption"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
-                                </ComboBox>
+                                <ComboBox Width="220" HorizontalAlignment="Left" ItemsSource="{Binding HorizontalAnchorOptions}" SelectedItem="{Binding SelectedHorizontalOption}" Background="#2D2D2D" Foreground="White"><ComboBox.ItemTemplate><DataTemplate x:DataType="vm:HorizontalAnchorOption"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox>
                             </StackPanel>
                         </Border>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <!-- 3. Dock appearance -------------------------------------------- -->
+            <!-- Dock appearance -->
             <TabItem Header="{Binding TabDockCustomization}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" AllowAutoHide="False">
                     <Grid MaxWidth="820" HorizontalAlignment="Left" ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="14" RowSpacing="14" Margin="10,0,6,12">
-                        <Border Grid.Row="0" Grid.Column="0" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
-                            <StackPanel Spacing="7">
-                                <TextBlock Text="{Binding TransparencyTitle}" FontSize="14" FontWeight="SemiBold" Foreground="#D8D8D8"/>
-                                <TextBlock Text="{Binding TransparencyHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
-                                <Slider Minimum="0" Maximum="100" Value="{Binding Transparency}" Margin="0,7,0,0"/>
-                            </StackPanel>
-                        </Border>
-                        <Border Grid.Row="0" Grid.Column="1" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
-                            <StackPanel Spacing="7">
-                                <TextBlock Text="{Binding RoundingTitle}" FontSize="14" FontWeight="SemiBold" Foreground="#D8D8D8"/>
-                                <TextBlock Text="{Binding RoundingHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
-                                <Slider Minimum="0" Maximum="30" Value="{Binding BorderRounding}" Margin="0,7,0,0"/>
-                            </StackPanel>
-                        </Border>
-                        <Border Grid.Row="1" Grid.Column="0" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
-                            <StackPanel Spacing="7">
-                                <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding VerticalPaddingTitle}" FontSize="14" FontWeight="SemiBold" Foreground="#D8D8D8"/><TextBlock Grid.Column="1" Text="{Binding DockVerticalPadding}" Foreground="#AAAAAA"/></Grid>
-                                <TextBlock Text="{Binding VerticalPaddingHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
-                                <Slider Minimum="0" Maximum="20" Value="{Binding DockVerticalPadding}" Margin="0,7,0,0"/>
-                            </StackPanel>
-                        </Border>
+                        <Border Grid.Row="0" Grid.Column="0" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16"><StackPanel Spacing="7"><TextBlock Text="{Binding TransparencyTitle}" FontSize="14" FontWeight="SemiBold" Foreground="#D8D8D8"/><TextBlock Text="{Binding TransparencyHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/><Slider Minimum="0" Maximum="100" Value="{Binding Transparency}" Margin="0,7,0,0"/></StackPanel></Border>
+                        <Border Grid.Row="0" Grid.Column="1" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16"><StackPanel Spacing="7"><TextBlock Text="{Binding RoundingTitle}" FontSize="14" FontWeight="SemiBold" Foreground="#D8D8D8"/><TextBlock Text="{Binding RoundingHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/><Slider Minimum="0" Maximum="30" Value="{Binding BorderRounding}" Margin="0,7,0,0"/></StackPanel></Border>
+                        <Border Grid.Row="1" Grid.Column="0" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16"><StackPanel Spacing="7"><Grid ColumnDefinitions="*,Auto"><TextBlock Text="{Binding VerticalPaddingTitle}" FontSize="14" FontWeight="SemiBold" Foreground="#D8D8D8"/><TextBlock Grid.Column="1" Text="{Binding DockVerticalPadding}" Foreground="#AAAAAA"/></Grid><TextBlock Text="{Binding VerticalPaddingHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/><Slider Minimum="0" Maximum="20" Value="{Binding DockVerticalPadding}" Margin="0,7,0,0"/></StackPanel></Border>
                         <Border Grid.Row="1" Grid.Column="1" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
                             <StackPanel Spacing="7">
                                 <TextBlock Text="{Binding BgColorTitle}" FontSize="14" FontWeight="SemiBold" Foreground="#D8D8D8"/>
                                 <TextBlock Text="{Binding BgColorHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
-                                <ItemsControl ItemsSource="{Binding PresetColors}" Margin="0,4,0,0">
-                                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                                    <ItemsControl.ItemTemplate><DataTemplate x:DataType="med:IBrush"><Border Width="28" Height="28" Margin="0,0,6,6" CornerRadius="5" Background="{Binding}" BorderBrush="#666" BorderThickness="1" PointerPressed="OnPresetColorPressed"/></DataTemplate></ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                    <Border Width="42" Height="28" CornerRadius="5" BorderBrush="#666" BorderThickness="1" Background="{Binding DockColorBrush}"/>
-                                    <Button Content="{Binding CustomColorText}" Click="OnCustomColor" Background="#3A3A3A" Foreground="White" BorderBrush="Transparent" Padding="12,5"/>
-                                </StackPanel>
+                                <ItemsControl ItemsSource="{Binding PresetColors}" Margin="0,4,0,0"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate x:DataType="med:IBrush"><Border Width="28" Height="28" Margin="0,0,6,6" CornerRadius="5" Background="{Binding}" BorderBrush="#666" BorderThickness="1" PointerPressed="OnPresetColorPressed"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                                <StackPanel Orientation="Horizontal" Spacing="10"><Border Width="42" Height="28" CornerRadius="5" BorderBrush="#666" BorderThickness="1" Background="{Binding DockColorBrush}"/><Button Content="{Binding CustomColorText}" Click="OnCustomColor" Background="#3A3A3A" Foreground="White" BorderBrush="Transparent" Padding="12,5"/></StackPanel>
                             </StackPanel>
                         </Border>
                     </Grid>
                 </ScrollViewer>
             </TabItem>
 
-            <!-- 4. Icon appearance -------------------------------------------- -->
+            <!-- Icon appearance -->
             <TabItem Header="{Binding TabIconsCustomization}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" AllowAutoHide="False">
                     <StackPanel MaxWidth="820" HorizontalAlignment="Left" Spacing="14" Margin="10,0,6,12">
                         <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
-                            <Border Grid.Column="0" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
-                                <StackPanel Spacing="7"><TextBlock Text="{Binding IconSizeTitle}" FontSize="14" FontWeight="SemiBold" Foreground="#D8D8D8"/><TextBlock Text="{Binding IconSizeHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/><Slider Minimum="16" Maximum="80" Value="{Binding IconSize}" Margin="0,7,0,0"/></StackPanel>
-                            </Border>
-                            <Border Grid.Column="1" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
-                                <StackPanel Spacing="7"><TextBlock Text="{Binding SpacingTitle}" FontSize="14" FontWeight="SemiBold" Foreground="#D8D8D8"/><TextBlock Text="{Binding SpacingHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/><Slider Minimum="0" Maximum="20" Value="{Binding IconSpacing}" Margin="0,7,0,0"/></StackPanel>
-                            </Border>
+                            <Border Grid.Column="0" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16"><StackPanel Spacing="7"><TextBlock Text="{Binding IconSizeTitle}" FontSize="14" FontWeight="SemiBold" Foreground="#D8D8D8"/><TextBlock Text="{Binding IconSizeHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/><Slider Minimum="16" Maximum="80" Value="{Binding IconSize}" Margin="0,7,0,0"/></StackPanel></Border>
+                            <Border Grid.Column="1" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16"><StackPanel Spacing="7"><TextBlock Text="{Binding SpacingTitle}" FontSize="14" FontWeight="SemiBold" Foreground="#D8D8D8"/><TextBlock Text="{Binding SpacingHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/><Slider Minimum="0" Maximum="20" Value="{Binding IconSpacing}" Margin="0,7,0,0"/></StackPanel></Border>
                         </Grid>
                         <Border Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
                             <StackPanel Spacing="8">
                                 <CheckBox Content="{Binding TintIconsTitle}" IsChecked="{Binding TintIcons}" Foreground="#D8D8D8" FontWeight="SemiBold"/>
                                 <StackPanel Spacing="7" IsVisible="{Binding TintIcons}">
                                     <TextBlock Text="{Binding TintColorHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
-                                    <ItemsControl ItemsSource="{Binding PresetColors}">
-                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate><DataTemplate x:DataType="med:IBrush"><Border Width="28" Height="28" Margin="0,0,6,6" CornerRadius="5" Background="{Binding}" BorderBrush="#666" BorderThickness="1" PointerPressed="OnTintPresetColorPressed"/></DataTemplate></ItemsControl.ItemTemplate>
-                                    </ItemsControl>
+                                    <ItemsControl ItemsSource="{Binding PresetColors}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel><ItemsControl.ItemTemplate><DataTemplate x:DataType="med:IBrush"><Border Width="28" Height="28" Margin="0,0,6,6" CornerRadius="5" Background="{Binding}" BorderBrush="#666" BorderThickness="1" PointerPressed="OnTintPresetColorPressed"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
                                     <StackPanel Orientation="Horizontal" Spacing="10"><Border Width="42" Height="28" CornerRadius="5" BorderBrush="#666" BorderThickness="1" Background="{Binding TintColorBrush}"/><Button Content="{Binding CustomColorText}" Click="OnCustomTintColor" Background="#3A3A3A" Foreground="White" BorderBrush="Transparent" Padding="12,5"/></StackPanel>
                                 </StackPanel>
                             </StackPanel>
@@ -292,48 +242,18 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- 5. General ----------------------------------------------------- -->
+            <!-- General -->
             <TabItem Header="{Binding TabGeneral}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" AllowAutoHide="False">
                     <Grid MaxWidth="820" HorizontalAlignment="Left" ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="14" RowSpacing="14" Margin="10,0,6,12">
-                        <Border Grid.Row="0" Grid.Column="0" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="{Binding OpenSourceText}" FontSize="15" FontWeight="SemiBold" Foreground="#E0E0E0"/>
-                                <CheckBox Content="{Binding StartWithWindowsText}" IsChecked="{Binding IsAutoStartEnabled}" Foreground="#CCCCCC"/>
-                                <CheckBox Content="{Binding ShowUnpinnedRunningAppsText}" IsChecked="{Binding ShowUnpinnedRunningApps}" Foreground="#CCCCCC"/>
-                                <CheckBox Content="{Binding ArrangeVerticalText}" IsChecked="{Binding IsVerticalDock}" IsEnabled="{Binding CanArrangeVertical}" Foreground="#CCCCCC"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Grid.Row="0" Grid.Column="1" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="{Binding WindowBehaviorTitle}" FontSize="15" FontWeight="SemiBold" Foreground="#E0E0E0"/>
-                                <CheckBox Content="{Binding AlwaysOnTopTitle}" IsChecked="{Binding AlwaysOnTop}" Foreground="#CCCCCC"/>
-                                <TextBlock Text="{Binding AlwaysOnTopHelper}" FontSize="10.5" Foreground="#777777" TextWrapping="Wrap" Margin="22,-2,0,3"/>
-                                <CheckBox Content="{Binding HorizontalEdgeAutoHideTitle}" IsChecked="{Binding AutoHideAtHorizontalEdges}" IsEnabled="{Binding !IsBottomAppBarMode}" Foreground="#CCCCCC"/>
-                                <CheckBox Content="{Binding VerticalEdgeAutoHideTitle}" IsChecked="{Binding AutoHideAtVerticalEdges}" IsEnabled="{Binding !IsBottomAppBarMode}" Foreground="#CCCCCC"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Grid.Row="1" Grid.Column="0" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="{Binding DockInteractionTitle}" FontSize="15" FontWeight="SemiBold" Foreground="#E0E0E0"/>
-                                <CheckBox Content="{Binding RunningIndicatorsTitle}" IsChecked="{Binding ShowRunningIndicators}" Foreground="#CCCCCC"/>
-                                <CheckBox Content="{Binding HoverMagnificationTitle}" IsChecked="{Binding EnableHoverMagnification}" Foreground="#CCCCCC"/>
-                                <CheckBox Content="{Binding HoverLabelsTitle}" IsChecked="{Binding ShowHoverLabels}" Foreground="#CCCCCC"/>
-                                <CheckBox Content="{Binding WindowPreviewsTitle}" IsChecked="{Binding ShowWindowPreviews}" Foreground="#CCCCCC"/>
-                            </StackPanel>
-                        </Border>
-
+                        <Border Grid.Row="0" Grid.Column="0" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16"><StackPanel Spacing="8"><TextBlock Text="{Binding OpenSourceText}" FontSize="15" FontWeight="SemiBold" Foreground="#E0E0E0"/><CheckBox Content="{Binding StartWithWindowsText}" IsChecked="{Binding IsAutoStartEnabled}" Foreground="#CCCCCC"/><CheckBox Content="{Binding ShowUnpinnedRunningAppsText}" IsChecked="{Binding ShowUnpinnedRunningApps}" Foreground="#CCCCCC"/><CheckBox Content="{Binding ArrangeVerticalText}" IsChecked="{Binding IsVerticalDock}" IsEnabled="{Binding CanArrangeVertical}" Foreground="#CCCCCC"/></StackPanel></Border>
+                        <Border Grid.Row="0" Grid.Column="1" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16"><StackPanel Spacing="6"><TextBlock Text="{Binding WindowBehaviorTitle}" FontSize="15" FontWeight="SemiBold" Foreground="#E0E0E0"/><CheckBox Content="{Binding AlwaysOnTopTitle}" IsChecked="{Binding AlwaysOnTop}" Foreground="#CCCCCC"/><TextBlock Text="{Binding AlwaysOnTopHelper}" FontSize="10.5" Foreground="#777777" TextWrapping="Wrap" Margin="22,-2,0,3"/><CheckBox Content="{Binding HorizontalEdgeAutoHideTitle}" IsChecked="{Binding AutoHideAtHorizontalEdges}" IsEnabled="{Binding !IsBottomAppBarMode}" Foreground="#CCCCCC"/><CheckBox Content="{Binding VerticalEdgeAutoHideTitle}" IsChecked="{Binding AutoHideAtVerticalEdges}" IsEnabled="{Binding !IsBottomAppBarMode}" Foreground="#CCCCCC"/></StackPanel></Border>
+                        <Border Grid.Row="1" Grid.Column="0" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16"><StackPanel Spacing="6"><TextBlock Text="{Binding DockInteractionTitle}" FontSize="15" FontWeight="SemiBold" Foreground="#E0E0E0"/><CheckBox Content="{Binding RunningIndicatorsTitle}" IsChecked="{Binding ShowRunningIndicators}" Foreground="#CCCCCC"/><CheckBox Content="{Binding HoverMagnificationTitle}" IsChecked="{Binding EnableHoverMagnification}" Foreground="#CCCCCC"/><CheckBox Content="{Binding HoverLabelsTitle}" IsChecked="{Binding ShowHoverLabels}" Foreground="#CCCCCC"/><CheckBox Content="{Binding WindowPreviewsTitle}" IsChecked="{Binding ShowWindowPreviews}" Foreground="#CCCCCC"/></StackPanel></Border>
                         <Border Grid.Row="1" Grid.Column="1" Background="#222222" BorderBrush="#333333" BorderThickness="1" CornerRadius="8" Padding="16">
                             <StackPanel Spacing="8">
                                 <TextBlock Text="{Binding ConfigBackupTitle}" FontSize="15" FontWeight="SemiBold" Foreground="#E0E0E0"/>
                                 <TextBlock Text="{Binding ConfigBackupHelper}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
-                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8">
-                                    <Button Grid.Row="0" Grid.Column="0" Content="{Binding OpenBackupFolderText}" Click="OnOpenBackupFolder" Background="#3A3A3A" Foreground="White" BorderBrush="Transparent" Padding="10,6"/>
-                                    <Button Grid.Row="0" Grid.Column="1" Content="{Binding ExportConfigText}" Click="OnExportConfig" Background="#3A3A3A" Foreground="White" BorderBrush="Transparent" Padding="10,6"/>
-                                    <Button Grid.Row="1" Grid.ColumnSpan="2" Content="{Binding ImportConfigText}" Click="OnImportConfig" Background="#3A3A3A" Foreground="White" BorderBrush="Transparent" Padding="10,6"/>
-                                </Grid>
+                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8"><Button Grid.Row="0" Grid.Column="0" Content="{Binding OpenBackupFolderText}" Click="OnOpenBackupFolder" Background="#3A3A3A" Foreground="White" BorderBrush="Transparent" Padding="10,6"/><Button Grid.Row="0" Grid.Column="1" Content="{Binding ExportConfigText}" Click="OnExportConfig" Background="#3A3A3A" Foreground="White" BorderBrush="Transparent" Padding="10,6"/><Button Grid.Row="1" Grid.ColumnSpan="2" Content="{Binding ImportConfigText}" Click="OnImportConfig" Background="#3A3A3A" Foreground="White" BorderBrush="Transparent" Padding="10,6"/></Grid>
                                 <Border Height="1" Background="#333333" Margin="0,5,0,3"/>
                                 <Button Content="{Binding AcknowledgementsText}" Click="OnAcknowledgements" Background="#3A3A3A" Foreground="White" BorderBrush="Transparent" Padding="10,6" HorizontalAlignment="Left"/>
                                 <TextBlock Text="{Binding VersionText}" Foreground="#999999" FontSize="11"/>

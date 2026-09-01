@@ -13,6 +13,7 @@ public partial class SettingsWindow
 
     private void InitializeWindowBehaviorSettingsHooks()
     {
+        ConfigureModernSettingsWindow();
         ItemsList.SelectionChanged += (_, _) => OnCustomIconSelectionChanged();
 
         Opened += (_, _) =>
@@ -21,6 +22,16 @@ public partial class SettingsWindow
             InstallBottomAppBarPositioningControls();
             InstallCustomIconControls();
             InstallConfigBackupSettingsPanel();
+
+            // The Dock can itself be HWND_TOPMOST. Normalize Settings after its
+            // HWND exists so owned dialogs (system icon picker, color picker,
+            // module window, etc.) always appear above Settings as expected.
+            NormalizeSettingsWindowZOrder();
+
+            // Reflow only after every dynamically-added section exists. This
+            // keeps the older insertion modules simple while presenting the user
+            // with a compact multi-column settings surface.
+            OptimizeSettingsLayout();
 
             if (DataContext is SettingsViewModel vm)
             {

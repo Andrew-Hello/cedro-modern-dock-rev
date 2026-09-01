@@ -1,5 +1,55 @@
 # Cedro Modern Dock Rev — Changelog
 
+## Rev v1.4.0 — 2026-09-01
+
+Fifth stable Rev release, focused on display/DPI resilience, fixed-height running indicators, corrected Settings-window Z-order and a full Settings information-architecture redesign.
+
+### Bottom AppBar display/DPI rebinding
+
+- Added native `WM_DISPLAYCHANGE` handling for resolution, monitor-topology and display changes while Bottom AppBar mode is active.
+- Added native `WM_DPICHANGED` handling so moving Cedro between displays with different DPI scaling no longer leaves the Dock using stale geometry.
+- Display-environment changes are debounced before any Shell work-area operation, allowing Windows, Explorer and Avalonia to finish relayout first.
+- A display change safely ends the old Bottom AppBar lifecycle, re-detects the current monitor/taskbar boundary, then creates one fresh reservation.
+- Existing AppBar height updates are paused during rebinding so new-DPI Avalonia `SizeChanged` events cannot update an old monitor reservation.
+- `WM_SETTINGCHANGE` / `SPI_SETWORKAREA` are deliberately not used as rebinding triggers, preventing Cedro from responding to its own AppBar work-area changes.
+
+### Fixed-height running indicators
+
+- Running-indicator dots no longer affect the Dock's measured height.
+- Every pinned/running icon reserves a fixed indicator slot regardless of whether a dot is visible.
+- When an indicator appears, the icon shifts slightly upward within the fixed layout instead of growing the Dock window.
+- Starting or closing applications therefore no longer changes Bottom AppBar reservation height or maximized-window geometry.
+- Toggling the global running-indicator preference likewise no longer changes Dock/AppBar height.
+
+### Settings Z-order correction
+
+- Settings is no longer opened as an owned child of the Always-on-top Dock window.
+- Removed the Windows owned-window relationship that could promote Settings into the Dock's topmost Z-order band.
+- Settings remains single-instance but now opens as an ordinary independent window.
+- Dialogs owned by Settings — including the Windows system-icon picker, color pickers and Windows-module window — can naturally appear above Settings instead of being covered by it.
+
+### Settings UI redesign
+
+- Replaced the stretched top-tab settings layout with a desktop-style left navigation rail and bounded right-side content area.
+- Changed the default Settings size to 1000×700 and made the window resizable within practical minimum/maximum bounds.
+- Added per-page scrolling instead of one giant outer ScrollViewer.
+- Added bounded content widths so 2K/4K monitors provide surrounding whitespace rather than stretching controls across the entire display.
+- Rebuilt the Dock Items page around a dedicated item list plus compact action and custom-icon cards.
+- Reorganized Dock appearance, icon appearance and General settings into compact card/grid layouts.
+- Kept Bottom AppBar positioning controls inside the Positioning page rather than exposing AppBar as a general window-behavior switch.
+- Preserved script-launcher, system-icon library, custom-image icon, configuration backup/import/export and interaction controls in the new layout.
+- Removed the prior runtime reflow architecture that first created the legacy tabs, dynamically inserted enhanced panels, and then rearranged the visual tree after `Opened`; the XAML now defines the final Settings information architecture directly.
+
+### Build and compatibility
+
+- Verified the redesigned Settings XAML and complete Rev v1.4.0 baseline through Windows GitHub Actions Release builds.
+- Existing Rev v1.3.0, v1.2.0, v1.1.0, v1.0.0 and compatible upstream configurations remain loadable.
+- Static and Dynamic positioning remain isolated from AppBar registration.
+- Existing system-icon `Source + Index` and imported Base64 image override formats are unchanged.
+- Rev v1.3.0 remains frozen as the previous known-good rollback baseline.
+
+---
+
 ## Rev v1.3.0 — 2026-08-27
 
 Fourth stable Rev release, focused on a dedicated, conservative Bottom AppBar positioning mode that lets maximized Windows applications avoid the Dock without mixing AppBar reservations into Static or Dynamic positioning.

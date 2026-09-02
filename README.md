@@ -1,3 +1,7 @@
+<p align="center">
+  <strong>English</strong> · <a href="README.zh-CN.md">简体中文</a>
+</p>
+
 # Cedro Modern Dock Rev
 
 > A Windows Dock / Quick Launch enhancement fork based on [Cedro Modern Dock](https://github.com/Cedro-Software/cedro-modern-dock).
